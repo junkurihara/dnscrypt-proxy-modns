@@ -14,3 +14,5 @@ dnscrypt-proxy/dnscrypt-proxy
 .ci/*.md
 .ci/*.md.minisig
 .ci/test-dnscrypt-proxy.toml
+.vscode
+.private
