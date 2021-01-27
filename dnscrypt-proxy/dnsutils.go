@@ -403,7 +403,8 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		if err != nil {
 			return DNSExchangeResponse{err: err}
 		}
-		upstreamAddr := udpAddr
+		upstreamAddr := udpAddr                 // nexthop address
+		var trailingAddrs []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 		if relay != nil && len(relay.RelayUDPAddrs) > 0 {
 			var relayIdx int
 			if proxy.anonRelayRandomization {
@@ -411,9 +412,21 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 			} else {
 				relayIdx = 0
 			}
-			proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery)
+			// TODO: change here based on options
+			for i := 0; i < len(relay.RelayUDPAddrs); i++ {
+				if i != relayIdx {
+					ipPort := DNSCryptRelayIpPort{
+						RelayIP:   relay.RelayUDPAddrs[i].IP,
+						RelayPort: relay.RelayUDPAddrs[i].Port,
+					}
+					trailingAddrs = append(trailingAddrs, ipPort)
+				}
+			}
+			///////////////
+			proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, trailingAddrs)
 			upstreamAddr = relay.RelayUDPAddrs[relayIdx]
-			dlog.Debugf("[%v] _dnsExchange: via relay [%v] (UDP)", serverAddress, relay.RelayUDPAddrs[relayIdx].IP)
+			dlog.Debugf("[%v] _dnsExchange: via relay [%v] (UDP)", serverAddress, upstreamAddr.IP)
+			dlog.Debugf("[%v] _dnsExchange: trailing relays %v after [%v] (UDP)", serverAddress, trailingAddrs, upstreamAddr.IP)
 		}
 		now := time.Now()
 		pc, err := net.DialUDP("udp", nil, upstreamAddr)
@@ -443,7 +456,8 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		if err != nil {
 			return DNSExchangeResponse{err: err}
 		}
-		upstreamAddr := tcpAddr
+		upstreamAddr := tcpAddr                 // nexthop address
+		var trailingAddrs []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 		if relay != nil && len(relay.RelayTCPAddrs) > 0 {
 			var relayIdx int
 			if proxy.anonRelayRandomization {
@@ -451,9 +465,20 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 			} else {
 				relayIdx = 0
 			}
-			proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery)
+			// TODO: change here based on options
+			for i := 0; i < len(relay.RelayTCPAddrs); i++ {
+				if i != relayIdx {
+					ipPort := DNSCryptRelayIpPort{
+						RelayIP:   relay.RelayTCPAddrs[i].IP,
+						RelayPort: relay.RelayTCPAddrs[i].Port,
+					}
+					trailingAddrs = append(trailingAddrs, ipPort)
+				}
+			}
+			proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, trailingAddrs)
 			upstreamAddr = relay.RelayTCPAddrs[relayIdx]
 			dlog.Debugf("[%v] _dnsExchange: via relay [%v] (TCP)", serverAddress, relay.RelayTCPAddrs[relayIdx].IP)
+			dlog.Debugf("[%v] _dnsExchange: trailing relays %v after [%v] (TCP)", serverAddress, trailingAddrs, upstreamAddr.IP)
 		}
 		now := time.Now()
 		var pc net.Conn

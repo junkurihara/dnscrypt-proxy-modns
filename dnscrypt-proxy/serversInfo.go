@@ -104,6 +104,11 @@ type DNSCryptRelay struct {
 	RelayTCPAddrs []*net.TCPAddr
 }
 
+type DNSCryptRelayIpPort struct {
+	RelayIP   net.IP
+	RelayPort int
+}
+
 type ODoHRelay struct{}
 
 type Relay struct {
@@ -406,10 +411,21 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 			relayCandidateStamps = append(relayCandidateStamps, filteredStamps[i])
 		}
 	} else if !wildcard || len(filteredStamps) == 1 {
-		relayCandidateStamps = append(relayCandidateStamps, filteredStamps[rand.Intn(len(filteredStamps))])
+		var relayIdx = rand.Intn(len(filteredStamps))
+		relayCandidateStamps = append(relayCandidateStamps, filteredStamps[relayIdx])
+		for i := 0; i < len(filteredStamps); i++ {
+			if i != relayIdx {
+				relayCandidateStamps = append(relayCandidateStamps, filteredStamps[i])
+			}
+		}
 	} else {
 		farthest := findFarthestRoute(proxy, name, filteredStamps)
 		relayCandidateStamps = append(relayCandidateStamps, farthest)
+		for i := 0; i < len(filteredStamps); i++ {
+			if filteredStamps[i] != farthest {
+				relayCandidateStamps = append(relayCandidateStamps, filteredStamps[i])
+			}
+		}
 	}
 	if len(relayCandidateStamps) == 0 {
 		return nil, fmt.Errorf("No valid relay for server [%v]", name)
