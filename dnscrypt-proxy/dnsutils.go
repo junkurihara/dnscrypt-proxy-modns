@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/binary"
 	"errors"
-	"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -302,7 +301,7 @@ type DNSExchangeResponse struct {
 	err              error
 }
 
-func DNSExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress string, relay *DNSCryptRelay, serverName *string, tryFragmentsSupport bool) (*dns.Msg, time.Duration, bool, error) {
+func DNSExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress string, relay []*DNSCryptRelay, serverName *string, tryFragmentsSupport bool) (*dns.Msg, time.Duration, bool, error) {
 	for {
 		cancelChannel := make(chan struct{})
 		channel := make(chan DNSExchangeResponse)
@@ -373,12 +372,12 @@ func DNSExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress strin
 			}
 			return nil, 0, false, err
 		}
-		dlog.Infof("Unable to get the public key for [%v] via relay [%v], retrying over a direct connection", *serverName, relay.RelayUDPAddrs)
+		dlog.Infof("Unable to get the public key for [%v] via relay [%v], retrying over a direct connection", *serverName, relay)
 		relay = nil
 	}
 }
 
-func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress string, relay *DNSCryptRelay, paddedLen int) DNSExchangeResponse {
+func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress string, relay []*DNSCryptRelay, paddedLen int) DNSExchangeResponse {
 	var packet []byte
 	var rtt time.Duration
 
@@ -403,30 +402,12 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		if err != nil {
 			return DNSExchangeResponse{err: err}
 		}
-		upstreamAddr := udpAddr                 // nexthop address
-		var trailingAddrs []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
-		if relay != nil && len(relay.RelayUDPAddrs) > 0 {
-			var relayIdx int
-			if proxy.anonRelayRandomization {
-				relayIdx = rand.Intn(len(relay.RelayUDPAddrs))
-			} else {
-				relayIdx = 0
-			}
-			// TODO: change here based on options
-			for i := 0; i < len(relay.RelayUDPAddrs); i++ {
-				if i != relayIdx {
-					ipPort := DNSCryptRelayIpPort{
-						RelayIP:   relay.RelayUDPAddrs[i].IP,
-						RelayPort: relay.RelayUDPAddrs[i].Port,
-					}
-					trailingAddrs = append(trailingAddrs, ipPort)
-				}
-			}
-			///////////////
-			proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, trailingAddrs)
-			upstreamAddr = relay.RelayUDPAddrs[relayIdx]
-			dlog.Debugf("[%v] _dnsExchange: via relay [%v] (UDP)", serverAddress, upstreamAddr.IP)
-			dlog.Debugf("[%v] _dnsExchange: trailing relays %v after [%v] (UDP)", serverAddress, trailingAddrs, upstreamAddr.IP)
+		upstreamAddr := udpAddr // nexthop address
+		if relay != nil && len(relay) > 0 {
+			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay)
+			proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, subsequentRelays)
+			upstreamAddr = relay[nexthopIdx].RelayUDPAddr
+			dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (UDP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
 		}
 		now := time.Now()
 		pc, err := net.DialUDP("udp", nil, upstreamAddr)
@@ -456,29 +437,13 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		if err != nil {
 			return DNSExchangeResponse{err: err}
 		}
-		upstreamAddr := tcpAddr                 // nexthop address
-		var trailingAddrs []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
-		if relay != nil && len(relay.RelayTCPAddrs) > 0 {
-			var relayIdx int
-			if proxy.anonRelayRandomization {
-				relayIdx = rand.Intn(len(relay.RelayTCPAddrs))
-			} else {
-				relayIdx = 0
-			}
-			// TODO: change here based on options
-			for i := 0; i < len(relay.RelayTCPAddrs); i++ {
-				if i != relayIdx {
-					ipPort := DNSCryptRelayIpPort{
-						RelayIP:   relay.RelayTCPAddrs[i].IP,
-						RelayPort: relay.RelayTCPAddrs[i].Port,
-					}
-					trailingAddrs = append(trailingAddrs, ipPort)
-				}
-			}
-			proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, trailingAddrs)
-			upstreamAddr = relay.RelayTCPAddrs[relayIdx]
-			dlog.Debugf("[%v] _dnsExchange: via relay [%v] (TCP)", serverAddress, relay.RelayTCPAddrs[relayIdx].IP)
-			dlog.Debugf("[%v] _dnsExchange: trailing relays %v after [%v] (TCP)", serverAddress, trailingAddrs, upstreamAddr.IP)
+		upstreamAddr := tcpAddr // nexthop address
+		// var subsequentRelays []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
+		if relay != nil && len(relay) > 0 {
+			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay)
+			proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, subsequentRelays)
+			upstreamAddr = relay[nexthopIdx].RelayTCPAddr
+			dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (TCP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
 		}
 		now := time.Now()
 		var pc net.Conn
@@ -512,5 +477,7 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 	if err := msg.Unpack(packet); err != nil {
 		return DNSExchangeResponse{err: err}
 	}
+	// check txid consistency
+	dlog.Debugf("[%v] _dnsExchange: TxIDs (response: [%v], query: [%v])", serverAddress, msg.Id, query.Id)
 	return DNSExchangeResponse{response: &msg, rtt: rtt, err: nil}
 }

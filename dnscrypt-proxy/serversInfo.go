@@ -99,9 +99,14 @@ func (LBStrategyRandom) getCandidate(serversCount int) int {
 
 var DefaultLBStrategy = LBStrategyP2{}
 
+type ServerStampWithMeta struct {
+	Nexthop bool
+	stamps.ServerStamp
+}
 type DNSCryptRelay struct {
-	RelayUDPAddrs []*net.UDPAddr
-	RelayTCPAddrs []*net.TCPAddr
+	RelayUDPAddr *net.UDPAddr
+	RelayTCPAddr *net.TCPAddr
+	Nexthop      bool
 }
 
 type DNSCryptRelayIpPort struct {
@@ -113,7 +118,7 @@ type ODoHRelay struct{}
 
 type Relay struct {
 	Proto    stamps.StampProtoType
-	Dnscrypt *DNSCryptRelay
+	Dnscrypt []*DNSCryptRelay
 	ODoH     *ODoHRelay
 }
 
@@ -286,7 +291,8 @@ func fetchServerInfo(proxy *Proxy, name string, stamp stamps.ServerStamp, isNew 
 	return ServerInfo{}, fmt.Errorf("Unsupported protocol for [%s]: [%s]", name, stamp.Proto.String())
 }
 
-func findFarthestRoute(proxy *Proxy, name string, relayStamps []*stamps.ServerStamp) *stamps.ServerStamp {
+// func findFarthestRoute(proxy *Proxy, name string, relayStamps []*stamps.ServerStamp) *stamps.ServerStamp {
+func findFarthestRoute(proxy *Proxy, name string, relayStamps []*ServerStampWithMeta) *ServerStampWithMeta {
 	serverIdx := -1
 	proxy.serversInfo.RLock()
 	for i, registeredServer := range proxy.serversInfo.registeredServers {
@@ -305,7 +311,8 @@ func findFarthestRoute(proxy *Proxy, name string, relayStamps []*stamps.ServerSt
 	if serverAddr == nil {
 		return nil
 	}
-	if len(proxy.serversInfo.registeredRelays) == 0 {
+	// if len(proxy.serversInfo.registeredRelays) == 0 {
+	if len(relayStamps) == 0 {
 		return nil
 	}
 	bestRelayIdxs := make([]int, 0)
@@ -347,22 +354,26 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 		return nil, nil
 	}
 	wildcard := false
-	relayNames, ok := (*routes)[name]
+	relays, ok := (*routes)[name]
 	if !ok {
 		wildcard = true
-		relayNames, ok = (*routes)["*"]
+		relays, ok = (*routes)["*"]
 	}
 	if !ok {
 		return nil, nil
 	}
-	relayStamps := make([]stamps.ServerStamp, 0)
-	for _, relayName := range relayNames {
-		if relayStamp, err := stamps.NewServerStampFromString(relayName); err == nil {
+	//relayStamps := make([]stamps.ServerStamp, 0)
+	relayStamps := make([]ServerStampWithMeta, 0)
+	for _, relay := range relays {
+		stamp, err := stamps.NewServerStampFromString(relay.RelayName)
+		if err == nil {
+			relayStamp := ServerStampWithMeta{Nexthop: relay.Nexthop, ServerStamp: stamp}
 			relayStamps = append(relayStamps, relayStamp)
-		} else if relayName == "*" {
+		} else if relay.RelayName == "*" {
+			// TODO: relayが*のときはソースから読み込まれているのがガンガン入ってくるので、そのソースをMultiple対応のものを用意しなきゃならない。
 			proxy.serversInfo.RLock()
 			for _, registeredServer := range proxy.serversInfo.registeredRelays {
-				relayStamps = append(relayStamps, registeredServer.stamp)
+				relayStamps = append(relayStamps, ServerStampWithMeta{Nexthop: relay.Nexthop, ServerStamp: registeredServer.stamp})
 			}
 			proxy.serversInfo.RUnlock()
 			wildcard = true
@@ -370,14 +381,14 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 		} else {
 			proxy.serversInfo.RLock()
 			for _, registeredServer := range proxy.serversInfo.registeredRelays {
-				if registeredServer.name == relayName {
-					relayStamps = append(relayStamps, registeredServer.stamp)
+				if registeredServer.name == relay.RelayName {
+					relayStamps = append(relayStamps, ServerStampWithMeta{Nexthop: relay.Nexthop, ServerStamp: registeredServer.stamp})
 					break
 				}
 			}
 			for _, registeredServer := range proxy.serversInfo.registeredServers {
-				if registeredServer.name == relayName {
-					relayStamps = append(relayStamps, registeredServer.stamp)
+				if registeredServer.name == relay.RelayName {
+					relayStamps = append(relayStamps, ServerStampWithMeta{Nexthop: relay.Nexthop, ServerStamp: registeredServer.stamp})
 					break
 				}
 			}
@@ -395,7 +406,8 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 	)
 
 	// filtering with serverProto
-	var filteredStamps [](*stamps.ServerStamp)
+	// var filteredStamps [](*stamps.ServerStampWith)
+	var filteredStamps [](*ServerStampWithMeta)
 	for i, stamp := range relayStamps {
 		if serverProto == stamp.Proto ||
 			(serverProto == stamps.StampProtoTypeDNSCrypt && stamp.Proto == stamps.StampProtoTypeDNSCryptRelay) ||
@@ -405,12 +417,16 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 	}
 	dlog.Debugf("Relay candidates supporting [%v]: %v", serverProto.String(), filteredStamps)
 
-	var relayCandidateStamps [](*stamps.ServerStamp)
-	if proxy.anonRelayRandomization {
+	// var relayCandidateStamps [](*stamps.ServerStamp)
+	var relayCandidateStamps [](*ServerStampWithMeta)
+	if proxy.anonRelayRandomization || proxy.anonSpecifiedNexthop {
+		// if relay_randomization is true, non-sorted. ordering will be done on-demand.
+		// proxy.determineRelayOrder specified the order of relaying
 		for i := range filteredStamps {
 			relayCandidateStamps = append(relayCandidateStamps, filteredStamps[i])
 		}
 	} else if !wildcard || len(filteredStamps) == 1 {
+		// for specific servers or only one relay, only nexthop is fixed
 		var relayIdx = rand.Intn(len(filteredStamps))
 		relayCandidateStamps = append(relayCandidateStamps, filteredStamps[relayIdx])
 		for i := 0; i < len(filteredStamps); i++ {
@@ -419,6 +435,7 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 			}
 		}
 	} else {
+		// otherwise, farthest relay is chosen
 		farthest := findFarthestRoute(proxy, name, filteredStamps)
 		relayCandidateStamps = append(relayCandidateStamps, farthest)
 		for i := 0; i < len(filteredStamps); i++ {
@@ -449,27 +466,22 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 	proxy.serversInfo.RUnlock()
 	switch serverProto {
 	case stamps.StampProtoTypeDNSCrypt:
-		var relayUDPAddrs [](*net.UDPAddr)
-		var relayTCPAddrs [](*net.TCPAddr)
+		var relayAddrs []*DNSCryptRelay
 		for _, stamp := range relayCandidateStamps {
 			relayUDPAddr, err := net.ResolveUDPAddr("udp", stamp.ServerAddrStr)
 			if err != nil {
 				return nil, err
 			}
-			relayUDPAddrs = append(relayUDPAddrs, relayUDPAddr)
 			relayTCPAddr, err := net.ResolveTCPAddr("tcp", stamp.ServerAddrStr)
 			if err != nil {
 				return nil, err
 			}
-			relayTCPAddrs = append(relayTCPAddrs, relayTCPAddr)
+			relayAddrs = append(relayAddrs, &DNSCryptRelay{RelayUDPAddr: relayUDPAddr, RelayTCPAddr: relayTCPAddr, Nexthop: stamp.Nexthop})
 		}
-		dlog.Noticef("Anonymizing queries for [%v] via [%v]", name, relayNamesForPrint)
+		dlog.Noticef("Anonymizing queries to [%v] via relays [%v]", name, relayNamesForPrint)
 		return &Relay{
-			Proto: stamps.StampProtoTypeDNSCryptRelay,
-			Dnscrypt: &DNSCryptRelay{
-				RelayUDPAddrs: relayUDPAddrs,
-				RelayTCPAddrs: relayTCPAddrs,
-			},
+			Proto:    stamps.StampProtoTypeDNSCryptRelay,
+			Dnscrypt: relayAddrs,
 		}, nil
 	case stamps.StampProtoTypeODoHTarget:
 		return &Relay{Proto: stamps.StampProtoTypeODoHRelay, ODoH: &ODoHRelay{}}, nil
@@ -498,7 +510,7 @@ func fetchDNSCryptServerInfo(proxy *Proxy, name string, stamp stamps.ServerStamp
 	if err != nil {
 		return ServerInfo{}, err
 	}
-	var dnscryptRelay *DNSCryptRelay
+	var dnscryptRelay []*DNSCryptRelay
 	if relay != nil {
 		dnscryptRelay = relay.Dnscrypt
 	}

@@ -20,7 +20,7 @@ type CertInfo struct {
 	ForwardSecurity    bool
 }
 
-func FetchCurrentDNSCryptCert(proxy *Proxy, serverName *string, proto string, pk ed25519.PublicKey, serverAddress string, providerName string, isNew bool, relay *DNSCryptRelay, knownBugs ServerBugs) (CertInfo, int, bool, error) {
+func FetchCurrentDNSCryptCert(proxy *Proxy, serverName *string, proto string, pk ed25519.PublicKey, serverAddress string, providerName string, isNew bool, relay []*DNSCryptRelay, knownBugs ServerBugs) (CertInfo, int, bool, error) {
 	if len(pk) != ed25519.PublicKeySize {
 		return CertInfo{}, 0, false, errors.New("Invalid public key length")
 	}

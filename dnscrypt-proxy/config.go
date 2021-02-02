@@ -153,6 +153,8 @@ func newConfig() Config {
 		AnonymizedDNS: AnonymizedDNSConfig{
 			DirectCertFallback: true,
 			RelayRandomization: false,
+			SpecifiedNexthop:   false,
+			MaxRelays:          1,
 		},
 	}
 }
@@ -224,9 +226,14 @@ type AllowIPConfig struct {
 	Format  string `toml:"log_format"`
 }
 
+type AnonymizedDNSRelay struct {
+	RelayName string `toml:"stamp"`
+	Nexthop   bool   `toml:"nexthop"`
+}
 type AnonymizedDNSRouteConfig struct {
-	ServerName string   `toml:"server_name"`
-	RelayNames []string `toml:"via"`
+	ServerName string               `toml:"server_name"`
+	Relays     []AnonymizedDNSRelay `toml:"via"`
+	// RelayNames []string `toml:"via"`
 }
 
 type AnonymizedDNSConfig struct {
@@ -234,6 +241,8 @@ type AnonymizedDNSConfig struct {
 	SkipIncompatible   bool                       `toml:"skip_incompatible"`
 	DirectCertFallback bool                       `toml:"direct_cert_fallback"`
 	RelayRandomization bool                       `toml:"relay_randomization"`
+	SpecifiedNexthop   bool                       `toml:"specified_nexthop"`
+	MaxRelays          int                        `toml:"max_relays"`
 }
 
 type BrokenImplementationsConfig struct {
@@ -608,15 +617,18 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 	proxy.allWeeklyRanges = allWeeklyRanges
 
 	if configRoutes := config.AnonymizedDNS.Routes; configRoutes != nil {
-		routes := make(map[string][]string)
+		routes := make(map[string][]AnonymizedDNSRelay)
 		for _, configRoute := range configRoutes {
-			routes[configRoute.ServerName] = configRoute.RelayNames
+			// routes[configRoute.ServerName] = configRoute.RelayNames
+			routes[configRoute.ServerName] = configRoute.Relays
 		}
 		proxy.routes = &routes
 	}
 	proxy.skipAnonIncompatibleResolvers = config.AnonymizedDNS.SkipIncompatible
 	proxy.anonDirectCertFallback = config.AnonymizedDNS.DirectCertFallback
 	proxy.anonRelayRandomization = config.AnonymizedDNS.RelayRandomization
+	proxy.anonSpecifiedNexthop = config.AnonymizedDNS.SpecifiedNexthop
+	proxy.anonMaximumRelays = config.AnonymizedDNS.MaxRelays
 
 	if config.DoHClientX509AuthLegacy.Creds != nil {
 		return errors.New("[tls_client_auth] has been renamed to [doh_client_x509_auth] - Update your config file")
@@ -738,6 +750,12 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 		}
 		if proxy.anonRelayRandomization {
 			dlog.Noticef("Anonymized DNS: relay randomization turned on")
+		}
+		if proxy.anonMaximumRelays > 0 {
+			dlog.Noticef("Anonymized DNS: maximum number of relays: %v", proxy.anonMaximumRelays)
+		}
+		if proxy.anonSpecifiedNexthop {
+			dlog.Noticef("Anonymized DNS: nexthop relay is chosen from specific set of relays")
 		}
 	}
 	if *flags.Check {

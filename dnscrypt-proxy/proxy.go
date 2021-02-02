@@ -4,6 +4,7 @@ import (
 	"context"
 	crypto_rand "crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"net"
 	"os"
@@ -40,7 +41,7 @@ type Proxy struct {
 	xTransport                    *XTransport
 	dohCreds                      *map[string]DOHClientCreds
 	allWeeklyRanges               *map[string]WeeklyRanges
-	routes                        *map[string][]string
+	routes                        *map[string][]AnonymizedDNSRelay
 	captivePortalMap              *CaptivePortalMap
 	nxLogFormat                   string
 	localDoHCertFile              string
@@ -93,6 +94,8 @@ type Proxy struct {
 	skipAnonIncompatibleResolvers bool
 	anonDirectCertFallback        bool
 	anonRelayRandomization        bool
+	anonSpecifiedNexthop          bool
+	anonMaximumRelays             int
 	pluginBlockUndelegated        bool
 	child                         bool
 	daemonize                     bool
@@ -466,19 +469,66 @@ func (proxy *Proxy) startAcceptingClients() {
 	proxy.localDoHListeners = nil
 }
 
-func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte, trailingAddrs []DNSCryptRelayIpPort) {
-	dlog.Debugf("prepareForRelay: target DNS [%v], trailing: [%v] (middle relays)", ip, trailingAddrs)
-	// add destinations IP
+// TODO: TODO:
+// TODO: ここでネクストホップリレーをちゃんと優先度と最大リレー数に合わせて決定する
+func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay) (int, []*DNSCryptRelayIpPort) {
+	dlog.Debugf("determineRelayOrder: max_relays [%v], relay_randomization [%v], specified_nexthop [%v]", proxy.anonMaximumRelays, proxy.anonRelayRandomization, proxy.anonSpecifiedNexthop)
+	// first choose nexthop relay which must be the most trusted one.
+	var nexthopIdx int
+	if proxy.anonRelayRandomization {
+		nexthopIdx = rand.Intn(len(relay))
+	} else {
+		nexthopIdx = 0
+	}
+	// secondly, fix the order of subsequent relays.
+	////////////////
+	// TODO: TODO: TODO: TODO:
+	// TODO: change here based on options
+	var subsequentRelays []*DNSCryptRelayIpPort
+	var relayOrderStr string // for print
+	if proto == "udp" {
+		relayOrderStr = fmt.Sprintf("%v:%v", relay[nexthopIdx].RelayUDPAddr.IP, relay[nexthopIdx].RelayUDPAddr.Port)
+		for i := 0; i < len(relay); i++ {
+			if i != nexthopIdx {
+				subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
+					RelayIP:   relay[i].RelayUDPAddr.IP,
+					RelayPort: relay[i].RelayUDPAddr.Port,
+				})
+			}
+		}
+	} else { // tcp
+		relayOrderStr = fmt.Sprintf("%v:%v", relay[nexthopIdx].RelayTCPAddr.IP, relay[nexthopIdx].RelayTCPAddr.Port)
+		for i := 0; i < len(relay); i++ {
+			if i != nexthopIdx {
+				subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
+					RelayIP:   relay[i].RelayTCPAddr.IP,
+					RelayPort: relay[i].RelayTCPAddr.Port,
+				})
+			}
+		}
+	}
+
+	for _, node := range subsequentRelays {
+		relayOrderStr = fmt.Sprintf("%v -> %v:%v", relayOrderStr, node.RelayIP.String(), node.RelayPort)
+	}
+	dlog.Debugf("relay order: %v", relayOrderStr)
+	return nexthopIdx, subsequentRelays
+}
+
+func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte, subsequentRelays []*DNSCryptRelayIpPort) {
+	// add destination IP
 	anonymizedDNSHeader := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00}
 	relayedQuery := append(anonymizedDNSHeader, ip.To16()...)
 	var tmp [2]byte
 	binary.BigEndian.PutUint16(tmp[0:2], uint16(port))
 	relayedQuery = append(relayedQuery, tmp[:]...)
-	// add trailing relays
-	for i := 0; i < len(trailingAddrs); i++ {
-		header := append(anonymizedDNSHeader, trailingAddrs[len(trailingAddrs)-1-i].RelayIP.To16()...)
+	//////////////////////////////////////
+	// TODO: this inefficient format should be changed to more efficient one like TLV.
+	// add subsequent relays
+	for i := 0; i < len(subsequentRelays); i++ {
+		header := append(anonymizedDNSHeader, subsequentRelays[len(subsequentRelays)-1-i].RelayIP.To16()...)
 		var tmp [2]byte
-		binary.BigEndian.PutUint16(tmp[0:2], uint16(trailingAddrs[len(trailingAddrs)-1-i].RelayPort))
+		binary.BigEndian.PutUint16(tmp[0:2], uint16((subsequentRelays)[len(subsequentRelays)-1-i].RelayPort))
 		header = append(header, tmp[:]...)
 		relayedQuery = append(header, relayedQuery...)
 	}
@@ -487,28 +537,13 @@ func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte,
 }
 
 func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32]byte, encryptedQuery []byte, clientNonce []byte) ([]byte, error) {
-	upstreamAddr := serverInfo.UDPAddr      // nexthop address
-	var trailingAddrs []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
+	upstreamAddr := serverInfo.UDPAddr          // nexthop address
+	var subsequentRelays []*DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
-		var relayIdx int
-		if proxy.anonRelayRandomization {
-			relayIdx = rand.Intn(len(serverInfo.Relay.Dnscrypt.RelayUDPAddrs))
-		} else {
-			relayIdx = 0
-		}
-		upstreamAddr = serverInfo.Relay.Dnscrypt.RelayUDPAddrs[relayIdx]
-		// TODO: change here based on options
-		for i := 0; i < len(serverInfo.Relay.Dnscrypt.RelayUDPAddrs); i++ {
-			if i != relayIdx {
-				ipPort := DNSCryptRelayIpPort{
-					RelayIP:   serverInfo.Relay.Dnscrypt.RelayUDPAddrs[i].IP,
-					RelayPort: serverInfo.Relay.Dnscrypt.RelayUDPAddrs[i].Port,
-				}
-				trailingAddrs = append(trailingAddrs, ipPort)
-			}
-		}
-		dlog.Debugf("[%v] exchangeWithUDPServer: via relay [%v]", serverInfo.Name, upstreamAddr.IP)
-		dlog.Debugf("[%v] exchangeWithUDPServer: trailing relays %v after [%v]", serverInfo.Name, trailingAddrs, upstreamAddr.IP)
+		var nexthopIdx int
+		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("udp", serverInfo.Relay.Dnscrypt)
+		upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayUDPAddr
+		dlog.Debugf("[%v] exchangeWithUDPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
 	}
 	var err error
 	var pc net.Conn
@@ -526,7 +561,7 @@ func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32
 		return nil, err
 	}
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
-		proxy.prepareForRelay(serverInfo.UDPAddr.IP, serverInfo.UDPAddr.Port, &encryptedQuery, trailingAddrs)
+		proxy.prepareForRelay(serverInfo.UDPAddr.IP, serverInfo.UDPAddr.Port, &encryptedQuery, subsequentRelays)
 	}
 	encryptedResponse := make([]byte, MaxDNSPacketSize)
 	for tries := 2; tries > 0; tries-- {
@@ -544,28 +579,13 @@ func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32
 }
 
 func (proxy *Proxy) exchangeWithTCPServer(serverInfo *ServerInfo, sharedKey *[32]byte, encryptedQuery []byte, clientNonce []byte) ([]byte, error) {
-	upstreamAddr := serverInfo.TCPAddr      // nexthop address
-	var trailingAddrs []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
+	upstreamAddr := serverInfo.TCPAddr          // nexthop address
+	var subsequentRelays []*DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
-		var relayIdx int
-		if proxy.anonRelayRandomization {
-			relayIdx = rand.Intn(len(serverInfo.Relay.Dnscrypt.RelayTCPAddrs))
-		} else {
-			relayIdx = 0
-		}
-		upstreamAddr = serverInfo.Relay.Dnscrypt.RelayTCPAddrs[relayIdx]
-		// TODO: change here based on options
-		for i := 0; i < len(serverInfo.Relay.Dnscrypt.RelayTCPAddrs); i++ {
-			if i != relayIdx {
-				ipPort := DNSCryptRelayIpPort{
-					RelayIP:   serverInfo.Relay.Dnscrypt.RelayTCPAddrs[i].IP,
-					RelayPort: serverInfo.Relay.Dnscrypt.RelayTCPAddrs[i].Port,
-				}
-				trailingAddrs = append(trailingAddrs, ipPort)
-			}
-		}
-		dlog.Debugf("[%v] exchangeWithTCPServer: via relay [%v]", serverInfo.Name, serverInfo.Relay.Dnscrypt.RelayTCPAddrs[relayIdx].IP)
-		dlog.Debugf("[%v] exchangeWithTCPServer: trailing relays %v after [%v]", serverInfo.Name, trailingAddrs, upstreamAddr.IP)
+		var nexthopIdx int
+		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("tcp", serverInfo.Relay.Dnscrypt)
+		upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayTCPAddr
+		dlog.Debugf("[%v] exchangeWithTCPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
 	}
 	var err error
 	var pc net.Conn
@@ -583,7 +603,7 @@ func (proxy *Proxy) exchangeWithTCPServer(serverInfo *ServerInfo, sharedKey *[32
 		return nil, err
 	}
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
-		proxy.prepareForRelay(serverInfo.TCPAddr.IP, serverInfo.TCPAddr.Port, &encryptedQuery, trailingAddrs)
+		proxy.prepareForRelay(serverInfo.TCPAddr.IP, serverInfo.TCPAddr.Port, &encryptedQuery, subsequentRelays)
 	}
 	encryptedQuery, err = PrefixWithSize(encryptedQuery)
 	if err != nil {
