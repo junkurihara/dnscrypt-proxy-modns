@@ -370,7 +370,6 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 			relayStamp := ServerStampWithMeta{Nexthop: relay.Nexthop, ServerStamp: stamp}
 			relayStamps = append(relayStamps, relayStamp)
 		} else if relay.RelayName == "*" {
-			// TODO: relayが*のときはソースから読み込まれているのがガンガン入ってくるので、そのソースをMultiple対応のものを用意しなきゃならない。
 			proxy.serversInfo.RLock()
 			for _, registeredServer := range proxy.serversInfo.registeredRelays {
 				relayStamps = append(relayStamps, ServerStampWithMeta{Nexthop: relay.Nexthop, ServerStamp: registeredServer.stamp})
