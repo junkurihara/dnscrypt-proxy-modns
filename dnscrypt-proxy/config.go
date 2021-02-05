@@ -155,6 +155,7 @@ func newConfig() Config {
 			RelayRandomization: false,
 			SpecifiedNexthop:   false,
 			MaxRelays:          1,
+			IsProtoV2:          false,
 		},
 	}
 }
@@ -243,6 +244,7 @@ type AnonymizedDNSConfig struct {
 	RelayRandomization bool                       `toml:"relay_randomization"`
 	SpecifiedNexthop   bool                       `toml:"specified_nexthop"`
 	MaxRelays          int                        `toml:"max_relays"`
+	IsProtoV2          bool                       `toml:"proto_v2"`
 }
 
 type BrokenImplementationsConfig struct {
@@ -629,6 +631,7 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 	proxy.anonRelayRandomization = config.AnonymizedDNS.RelayRandomization
 	proxy.anonSpecifiedNexthop = config.AnonymizedDNS.SpecifiedNexthop
 	proxy.anonMaximumRelays = config.AnonymizedDNS.MaxRelays
+	proxy.anonIsProtoV2 = config.AnonymizedDNS.IsProtoV2
 
 	if config.DoHClientX509AuthLegacy.Creds != nil {
 		return errors.New("[tls_client_auth] has been renamed to [doh_client_x509_auth] - Update your config file")
@@ -756,6 +759,9 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 		}
 		if proxy.anonSpecifiedNexthop {
 			dlog.Noticef("Anonymized DNS: nexthop relay is chosen from specific set of relays")
+		}
+		if proxy.anonIsProtoV2 {
+			dlog.Noticef("Anonymized DNS: protorol v2 is used")
 		}
 	}
 	if *flags.Check {

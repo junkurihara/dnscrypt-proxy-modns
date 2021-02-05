@@ -96,6 +96,7 @@ type Proxy struct {
 	anonRelayRandomization        bool
 	anonSpecifiedNexthop          bool
 	anonMaximumRelays             int
+	anonIsProtoV2                 bool
 	pluginBlockUndelegated        bool
 	child                         bool
 	daemonize                     bool
@@ -516,22 +517,43 @@ func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay) (i
 }
 
 func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte, subsequentRelays []*DNSCryptRelayIpPort) {
-	// add destination IP
-	anonymizedDNSHeader := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00}
-	relayedQuery := append(anonymizedDNSHeader, ip.To16()...)
-	var tmp [2]byte
-	binary.BigEndian.PutUint16(tmp[0:2], uint16(port))
-	relayedQuery = append(relayedQuery, tmp[:]...)
-	//////////////////////////////////////
-	// TODO: this inefficient format should be changed to more efficient one like TLV.
-	// add subsequent relays
-	for i := 0; i < len(subsequentRelays); i++ {
-		header := append(anonymizedDNSHeader, subsequentRelays[len(subsequentRelays)-1-i].RelayIP.To16()...)
+	var relayedQuery []byte
+	if proxy.anonIsProtoV2 {
+		// version 2: TLV like format
+		anonymizedDNSHeaderV2 := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x00, 0x00}
+		relayedQuery = append(relayedQuery, anonymizedDNSHeaderV2...)
 		var tmp [2]byte
-		binary.BigEndian.PutUint16(tmp[0:2], uint16((subsequentRelays)[len(subsequentRelays)-1-i].RelayPort))
-		header = append(header, tmp[:]...)
-		relayedQuery = append(header, relayedQuery...)
+		binary.BigEndian.PutUint16(tmp[0:2], uint16(len(subsequentRelays)+1)) // number of subsequent hops
+		relayedQuery = append(relayedQuery, tmp[:]...)
+		// add subsequent relays
+		for i := 0; i < len(subsequentRelays); i++ {
+			relayedQuery = append(relayedQuery, subsequentRelays[len(subsequentRelays)-1-i].RelayIP.To16()...)
+			var tmp [2]byte
+			binary.BigEndian.PutUint16(tmp[0:2], uint16((subsequentRelays)[len(subsequentRelays)-1-i].RelayPort))
+			relayedQuery = append(relayedQuery, tmp[:]...)
+		}
+		// add destination dns server
+		relayedQuery = append(relayedQuery, ip.To16()...)
+		binary.BigEndian.PutUint16(tmp[0:2], uint16(port))
+		relayedQuery = append(relayedQuery, tmp[:]...)
+	} else {
+		// version 1, simple extension of original format
+		// add destination DNS server IP
+		anonymizedDNSHeader := []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00}
+		relayedQuery = append(anonymizedDNSHeader, ip.To16()...)
+		var tmp [2]byte
+		binary.BigEndian.PutUint16(tmp[0:2], uint16(port))
+		relayedQuery = append(relayedQuery, tmp[:]...)
+		// add subsequent relays
+		for i := 0; i < len(subsequentRelays); i++ {
+			header := append(anonymizedDNSHeader, subsequentRelays[len(subsequentRelays)-1-i].RelayIP.To16()...)
+			var tmp [2]byte
+			binary.BigEndian.PutUint16(tmp[0:2], uint16((subsequentRelays)[len(subsequentRelays)-1-i].RelayPort))
+			header = append(header, tmp[:]...)
+			relayedQuery = append(header, relayedQuery...)
+		}
 	}
+
 	relayedQuery = append(relayedQuery, *encryptedQuery...)
 	*encryptedQuery = relayedQuery
 }
