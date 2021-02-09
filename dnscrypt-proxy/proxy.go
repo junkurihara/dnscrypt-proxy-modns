@@ -527,9 +527,9 @@ func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte,
 		relayedQuery = append(relayedQuery, tmp[:]...)
 		// add subsequent relays
 		for i := 0; i < len(subsequentRelays); i++ {
-			relayedQuery = append(relayedQuery, subsequentRelays[len(subsequentRelays)-1-i].RelayIP.To16()...)
+			relayedQuery = append(relayedQuery, subsequentRelays[i].RelayIP.To16()...)
 			var tmp [2]byte
-			binary.BigEndian.PutUint16(tmp[0:2], uint16((subsequentRelays)[len(subsequentRelays)-1-i].RelayPort))
+			binary.BigEndian.PutUint16(tmp[0:2], uint16((subsequentRelays)[i].RelayPort))
 			relayedQuery = append(relayedQuery, tmp[:]...)
 		}
 		// add destination dns server
