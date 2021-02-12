@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -408,9 +409,9 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 			if nexthopIdx != -1 {
 				proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, subsequentRelays)
 				upstreamAddr = relay[nexthopIdx].RelayUDPAddr
-				dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (UDP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+				dlog.Debugf("[%v] _dnsExchange: relay %v (UDP)", serverAddress, displayRelayOrder(upstreamAddr.IP, upstreamAddr.Port, subsequentRelays))
 			} else {
-				dlog.Warnf("[%v] No relay is available (maybe loop)", serverAddress)
+				dlog.Infof("[%v] No relay is available", serverAddress)
 			}
 		}
 		now := time.Now()
@@ -448,9 +449,9 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 			if nexthopIdx != -1 {
 				proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, subsequentRelays)
 				upstreamAddr = relay[nexthopIdx].RelayTCPAddr
-				dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (TCP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+				dlog.Debugf("[%v] _dnsExchange: relay %v (TCP)", serverAddress, displayRelayOrder(upstreamAddr.IP, upstreamAddr.Port, subsequentRelays))
 			} else {
-				dlog.Warnf("[%v] No relay is available (maybe loop)", serverAddress)
+				dlog.Infof("[%v] No relay is available", serverAddress)
 			}
 		}
 		now := time.Now()
@@ -485,7 +486,15 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 	if err := msg.Unpack(packet); err != nil {
 		return DNSExchangeResponse{err: err}
 	}
-	// check txid consistency
+	// TODO: check txid consistency
 	dlog.Debugf("[%v] _dnsExchange: TxIDs (response: [%v], query: [%v])", serverAddress, msg.Id, query.Id)
 	return DNSExchangeResponse{response: &msg, rtt: rtt, err: nil}
+}
+
+func displayRelayOrder(nexthopIP net.IP, nexthopPort int, arr []*DNSCryptRelayIpPort) string {
+	str := fmt.Sprintf("%v:%v", nexthopIP.String(), nexthopPort)
+	for _, ipPort := range arr {
+		str = fmt.Sprintf("%v -> %v:%v", str, ipPort.RelayIP.String(), ipPort.RelayPort)
+	}
+	return str
 }

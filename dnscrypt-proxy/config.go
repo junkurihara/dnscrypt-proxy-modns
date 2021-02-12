@@ -155,6 +155,7 @@ func newConfig() Config {
 			RelayRandomization: false,
 			SpecifiedNexthop:   false,
 			MaxRelays:          1,
+			MinRelays:          1,
 			IsProtoV2:          false,
 		},
 	}
@@ -244,6 +245,7 @@ type AnonymizedDNSConfig struct {
 	RelayRandomization bool                       `toml:"relay_randomization"`
 	SpecifiedNexthop   bool                       `toml:"specified_nexthop"`
 	MaxRelays          int                        `toml:"max_relays"`
+	MinRelays          int                        `toml:"min_relays"`
 	IsProtoV2          bool                       `toml:"proto_v2"`
 }
 
@@ -631,6 +633,7 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 	proxy.anonRelayRandomization = config.AnonymizedDNS.RelayRandomization
 	proxy.anonSpecifiedNexthop = config.AnonymizedDNS.SpecifiedNexthop
 	proxy.anonMaximumRelays = config.AnonymizedDNS.MaxRelays
+	proxy.anonMinimumRelays = config.AnonymizedDNS.MinRelays
 	proxy.anonIsProtoV2 = config.AnonymizedDNS.IsProtoV2
 
 	if config.DoHClientX509AuthLegacy.Creds != nil {
@@ -754,8 +757,8 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 		if proxy.anonRelayRandomization {
 			dlog.Noticef("Anonymized DNS: relay randomization turned on")
 		}
-		if proxy.anonMaximumRelays > 0 {
-			dlog.Noticef("Anonymized DNS: maximum number of relays: %v", proxy.anonMaximumRelays)
+		if proxy.anonMaximumRelays > 0 || proxy.anonMinimumRelays >= 0 {
+			dlog.Noticef("Anonymized DNS: max relays = %v, min relays = %v", proxy.anonMaximumRelays, proxy.anonMinimumRelays)
 		}
 		if proxy.anonSpecifiedNexthop {
 			dlog.Noticef("Anonymized DNS: nexthop relay is chosen from specific set of relays")
