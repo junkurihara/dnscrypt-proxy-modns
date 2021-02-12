@@ -470,42 +470,101 @@ func (proxy *Proxy) startAcceptingClients() {
 	proxy.localDoHListeners = nil
 }
 
-// TODO: TODO:
-// TODO: ここでネクストホップリレーをちゃんと優先度と最大リレー数に合わせて決定する
-func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay) (int, []*DNSCryptRelayIpPort) {
-	dlog.Debugf("determineRelayOrder: max_relays [%v], relay_randomization [%v], specified_nexthop [%v]", proxy.anonMaximumRelays, proxy.anonRelayRandomization, proxy.anonSpecifiedNexthop)
-	// first choose nexthop relay which must be the most trusted one.
-	var nexthopIdx int
-	if proxy.anonRelayRandomization {
-		nexthopIdx = rand.Intn(len(relay))
-	} else {
-		nexthopIdx = 0
+func removeDuplicate(proto string, relays []*DNSCryptRelay, targetIP net.IP, targetPort int) []int {
+	results := make([]int, 0, len(relays))
+	cnt := 0
+	encountered := map[string]int{}
+	for i, relay := range relays {
+		var relayString string
+		var isNotTarget bool
+		if proto == "udp" {
+			relayString = fmt.Sprintf("%v:%v", net.IP(relay.RelayUDPAddr.IP.String()), relay.RelayUDPAddr.Port)
+			isNotTarget = !(targetIP.Equal(relay.RelayUDPAddr.IP) && targetPort == relay.RelayUDPAddr.Port)
+		} else {
+			relayString = fmt.Sprintf("%v:%v", net.IP(relay.RelayTCPAddr.IP.String()), relay.RelayTCPAddr.Port)
+			isNotTarget = !(targetIP.Equal(relay.RelayTCPAddr.IP) && targetPort == relay.RelayTCPAddr.Port)
+		}
+		if isNotTarget {
+			if resIdx, ext := encountered[relayString]; !ext {
+				encountered[relayString] = cnt
+				results = append(results, i)
+				cnt++
+			} else if relays[i].Nexthop { // Prioritized when nexthop is true
+				results[resIdx] = i
+			}
+		}
 	}
+	return results
+}
+
+func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, targetIP net.IP, targetPort int) (int, []*DNSCryptRelayIpPort) {
+	dlog.Debugf("determineRelayOrder: max_relays [%v], relay_randomization [%v], specified_nexthop [%v]", proxy.anonMaximumRelays, proxy.anonRelayRandomization, proxy.anonSpecifiedNexthop)
+	// assert for maximum allowed relays
+	if !(proxy.anonMaximumRelays > 0) {
+		return -1, nil
+	}
+	// first remove dups (loop avoidance)
+	relayCandidateIdx := removeDuplicate(proto, relay, targetIP, targetPort)
+	if len(relayCandidateIdx) == 0 {
+		return -1, nil
+	}
+
+	// secondly choose nexthop relay which must be the most trusted one.
+	var nexthopIdx int
+	var nexthopCandidateIdx []int
+	if !proxy.anonSpecifiedNexthop {
+		nexthopCandidateIdx = append(nexthopCandidateIdx, relayCandidateIdx...)
+	} else {
+		for _, v := range relayCandidateIdx {
+			if relay[v].Nexthop {
+				nexthopCandidateIdx = append(nexthopCandidateIdx, v)
+			}
+		}
+	}
+	if proxy.anonSpecifiedNexthop && len(nexthopCandidateIdx) == 0 {
+		return -1, nil
+	}
+
+	if proxy.anonRelayRandomization {
+		idx := rand.Intn(len(nexthopCandidateIdx))
+		nexthopIdx = nexthopCandidateIdx[idx]
+		relayCandidateIdx = append(relayCandidateIdx[:idx], relayCandidateIdx[idx+1:]...)
+	} else {
+		nexthopIdx = nexthopCandidateIdx[0]
+		relayCandidateIdx = relayCandidateIdx[1:]
+	}
+
 	// secondly, fix the order of subsequent relays.
-	////////////////
-	// TODO: TODO: TODO: TODO:
-	// TODO: change here based on options
 	var subsequentRelays []*DNSCryptRelayIpPort
-	var relayOrderStr string // for print
+	var relayOrderStr string                                         // for print
+	hopNum := Min(len(relayCandidateIdx), proxy.anonMaximumRelays-1) // TODO: max num should be truncated? 最大値に常に当たるのはいいのか？数自体もランダマイズした方がいいか？
+	hopOrder := []int{}
+	if proxy.anonRelayRandomization {
+		for i := 0; i < hopNum; i++ {
+			idx := rand.Intn(len(relayCandidateIdx))
+			hopOrder = append(hopOrder, relayCandidateIdx[idx])
+			relayCandidateIdx = append(relayCandidateIdx[:idx], relayCandidateIdx[idx+1:]...)
+		}
+	} else {
+		hopOrder = relayCandidateIdx[:hopNum]
+	}
+
+	// formatting
 	if proto == "udp" {
 		relayOrderStr = fmt.Sprintf("%v:%v", relay[nexthopIdx].RelayUDPAddr.IP, relay[nexthopIdx].RelayUDPAddr.Port)
-		for i := 0; i < len(relay); i++ {
-			if i != nexthopIdx {
-				subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
-					RelayIP:   relay[i].RelayUDPAddr.IP,
-					RelayPort: relay[i].RelayUDPAddr.Port,
-				})
-			}
+		for _, v := range hopOrder {
+			subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
+				RelayIP:   relay[v].RelayUDPAddr.IP,
+				RelayPort: relay[v].RelayUDPAddr.Port,
+			})
 		}
 	} else { // tcp
 		relayOrderStr = fmt.Sprintf("%v:%v", relay[nexthopIdx].RelayTCPAddr.IP, relay[nexthopIdx].RelayTCPAddr.Port)
-		for i := 0; i < len(relay); i++ {
-			if i != nexthopIdx {
-				subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
-					RelayIP:   relay[i].RelayTCPAddr.IP,
-					RelayPort: relay[i].RelayTCPAddr.Port,
-				})
-			}
+		for _, v := range hopOrder {
+			subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
+				RelayIP:   relay[v].RelayTCPAddr.IP,
+				RelayPort: relay[v].RelayTCPAddr.Port,
+			})
 		}
 	}
 
@@ -563,9 +622,14 @@ func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32
 	var subsequentRelays []*DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
 		var nexthopIdx int
-		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("udp", serverInfo.Relay.Dnscrypt)
-		upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayUDPAddr
-		dlog.Debugf("[%v] exchangeWithUDPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("udp", serverInfo.Relay.Dnscrypt, upstreamAddr.IP, upstreamAddr.Port)
+		if subsequentRelays != nil {
+			upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayUDPAddr
+			dlog.Debugf("[%v] exchangeWithUDPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+		} else {
+			dlog.Warnf("[%v] No relay is available (maybe loop)", serverInfo.Name)
+		}
+
 	}
 	var err error
 	var pc net.Conn
@@ -605,9 +669,13 @@ func (proxy *Proxy) exchangeWithTCPServer(serverInfo *ServerInfo, sharedKey *[32
 	var subsequentRelays []*DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
 		var nexthopIdx int
-		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("tcp", serverInfo.Relay.Dnscrypt)
-		upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayTCPAddr
-		dlog.Debugf("[%v] exchangeWithTCPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("tcp", serverInfo.Relay.Dnscrypt, upstreamAddr.IP, upstreamAddr.Port)
+		if subsequentRelays != nil {
+			upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayTCPAddr
+			dlog.Debugf("[%v] exchangeWithTCPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+		} else {
+			dlog.Warnf("[%v] No relay is available (maybe loop)", serverInfo.Name)
+		}
 	}
 	var err error
 	var pc net.Conn

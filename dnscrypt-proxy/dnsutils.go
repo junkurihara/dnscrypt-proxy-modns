@@ -404,10 +404,14 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		}
 		upstreamAddr := udpAddr // nexthop address
 		if relay != nil && len(relay) > 0 {
-			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay)
-			proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, subsequentRelays)
-			upstreamAddr = relay[nexthopIdx].RelayUDPAddr
-			dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (UDP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay, upstreamAddr.IP, upstreamAddr.Port)
+			if subsequentRelays != nil {
+				proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, subsequentRelays)
+				upstreamAddr = relay[nexthopIdx].RelayUDPAddr
+				dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (UDP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+			} else {
+				dlog.Warnf("[%v] No relay is available (maybe loop)", serverAddress)
+			}
 		}
 		now := time.Now()
 		pc, err := net.DialUDP("udp", nil, upstreamAddr)
@@ -440,10 +444,14 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		upstreamAddr := tcpAddr // nexthop address
 		// var subsequentRelays []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
 		if relay != nil && len(relay) > 0 {
-			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay)
-			proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, subsequentRelays)
-			upstreamAddr = relay[nexthopIdx].RelayTCPAddr
-			dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (TCP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay, upstreamAddr.IP, upstreamAddr.Port)
+			if subsequentRelays != nil {
+				proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, subsequentRelays)
+				upstreamAddr = relay[nexthopIdx].RelayTCPAddr
+				dlog.Debugf("[%v] _dnsExchange: nexthop relay [%v:%v], subsequent relays %v (TCP)", serverAddress, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
+			} else {
+				dlog.Warnf("[%v] No relay is available (maybe loop)", serverAddress)
+			}
 		}
 		now := time.Now()
 		var pc net.Conn
