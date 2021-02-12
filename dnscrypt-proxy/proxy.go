@@ -623,7 +623,7 @@ func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
 		var nexthopIdx int
 		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("udp", serverInfo.Relay.Dnscrypt, upstreamAddr.IP, upstreamAddr.Port)
-		if subsequentRelays != nil {
+		if nexthopIdx != -1 {
 			upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayUDPAddr
 			dlog.Debugf("[%v] exchangeWithUDPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
 		} else {
@@ -670,7 +670,7 @@ func (proxy *Proxy) exchangeWithTCPServer(serverInfo *ServerInfo, sharedKey *[32
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
 		var nexthopIdx int
 		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("tcp", serverInfo.Relay.Dnscrypt, upstreamAddr.IP, upstreamAddr.Port)
-		if subsequentRelays != nil {
+		if nexthopIdx != -1 {
 			upstreamAddr = serverInfo.Relay.Dnscrypt[nexthopIdx].RelayTCPAddr
 			dlog.Debugf("[%v] exchangeWithTCPServer: nexthop relay [%v:%v], subsequent relays %v", serverInfo.Name, upstreamAddr.IP, upstreamAddr.Port, subsequentRelays)
 		} else {
