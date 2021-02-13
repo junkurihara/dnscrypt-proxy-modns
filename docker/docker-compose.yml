@@ -1,0 +1,20 @@
+version: "3"
+services:
+  dnscrypt-proxy-fork:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        - GIT_USER=${GIT_USER}
+        - GIT_TOKEN=${GIT_TOKEN}
+    image: jqtype/dnscrypt-proxy-fork
+    container_name: dnscrypt-proxy-fork
+    restart: always
+    ports:
+      - "127.0.0.1:50053:53/udp"
+    #    expose:
+    #      - "53"
+    tty: true
+    volumes:
+      - ./log:/var/log/dnscrypt-proxy
+      - ./config:/config
