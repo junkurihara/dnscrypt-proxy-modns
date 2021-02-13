@@ -10,6 +10,8 @@ services:
     image: jqtype/dnscrypt-proxy-fork
     container_name: dnscrypt-proxy-fork
     restart: always
+    environment:
+      - DEBUG=true
     ports:
       - "127.0.0.1:50053:53/udp"
     #    expose:
