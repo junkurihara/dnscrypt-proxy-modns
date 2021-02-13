@@ -20,7 +20,7 @@ RUN apk --no-cache add ca-certificates python3 git
 
 COPY --from=build /tmp/dp/dnscrypt-proxy/dnscrypt-proxy /usr/local/bin/dnscrypt-proxy
 COPY --from=build /tmp/dp/utils/generate-domains-blocklist/generate-domains-blocklist.py /usr/local/bin/generate-domains-blocklist.py
-COPY ./start.sh /usr/local/bin/start.sh
+COPY docker/start.sh /usr/local/bin/start.sh
 
 RUN chmod 755 /usr/local/bin/*
 
