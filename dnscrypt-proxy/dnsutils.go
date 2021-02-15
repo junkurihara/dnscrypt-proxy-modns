@@ -486,8 +486,12 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 	if err := msg.Unpack(packet); err != nil {
 		return DNSExchangeResponse{err: err}
 	}
-	// TODO: check txid consistency
-	dlog.Debugf("[%v] _dnsExchange: TxIDs (response: [%v], query: [%v])", serverAddress, msg.Id, query.Id)
+	// check txid consistency
+	if msg.Id != query.Id {
+		dlog.Errorf("[%v] _dnsExchange: TxIDs (response: [%v], query: [%v]) [%v]", serverAddress, msg.Id, query.Id, msg.Id == query.Id)
+		return DNSExchangeResponse{err: fmt.Errorf("Inconsistent transaction ID (response: [%v], query: [%v])", msg.Id, query.Id)}
+	}
+
 	return DNSExchangeResponse{response: &msg, rtt: rtt, err: nil}
 }
 
