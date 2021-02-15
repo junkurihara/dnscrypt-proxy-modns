@@ -415,7 +415,7 @@ cache_neg_max_ttl = 600
 ## Path to the query log file (absolute, or relative to the same directory as the config file)
 ## Can be set to /dev/stdout in order to log to the standard output.
 
-file = '/var/log/dnscrypt-proxy/query.log'
+# file = '/var/log/dnscrypt-proxy/query.log'
 
 
 ## Query log format (currently supported: tsv and ltsv)
@@ -470,7 +470,7 @@ format = 'tsv'
 ## Path to the file of blocking rules (absolute, or relative to the same directory as the config file)
 
 # blocked_names_file = 'blocked-names.txt'
-blocked_names_file = '/config/blocklist.txt'
+# blocked_names_file = '/config/blocklist.txt'
 
 
 ## Optional path to a file logging blocked queries
