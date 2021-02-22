@@ -543,7 +543,7 @@ func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, ta
 	// var relayOrderStr string                                         // for print
 	hopNumMax := Min(len(relayCandidateIdx), proxy.anonMaximumRelays-1)
 	hopNumMin := Min(len(relayCandidateIdx), proxy.anonMinimumRelays-1)
-	hopNum := rand.Intn(hopNumMax - hopNumMin + 1) // randomly choose at most max_relays and at least min_relays
+	hopNum := hopNumMin + rand.Intn(hopNumMax-hopNumMin+1) // randomly choose at most max_relays and at least min_relays
 	hopOrder := []int{}
 	if proxy.anonRelayRandomization {
 		for i := 0; i < hopNum; i++ {
