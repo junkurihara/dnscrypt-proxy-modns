@@ -13,7 +13,7 @@ services:
     environment:
       - DEBUG=true
     ports:
-      - "127.0.0.1:50053:53/udp"
+      - "127.0.0.1:50053:53"
     #    expose:
     #      - "53"
     tty: true

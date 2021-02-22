@@ -376,7 +376,7 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 			}
 			proxy.serversInfo.RUnlock()
 			wildcard = true
-			break
+			// break
 		} else {
 			proxy.serversInfo.RLock()
 			for _, registeredServer := range proxy.serversInfo.registeredRelays {
@@ -395,7 +395,25 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 		}
 	}
 
-	if len(relayStamps) == 0 {
+	// remove all duplication from relaystamps
+	relayStampsNoDup := make([]ServerStampWithMeta, 0, len(relayStamps))
+	type DupCheck struct {
+		encountered bool
+		storedIdx   int
+	}
+	dupCheck := map[string]DupCheck{}
+	cnt := 0
+	for _, v := range relayStamps {
+		if check := dupCheck[v.ServerStamp.String()]; !check.encountered {
+			dupCheck[v.ServerStamp.String()] = DupCheck{encountered: true, storedIdx: cnt}
+			relayStampsNoDup = append(relayStampsNoDup, v)
+			cnt++
+		} else {
+			relayStampsNoDup[check.storedIdx].Nexthop = relayStampsNoDup[check.storedIdx].Nexthop || v.Nexthop
+		}
+	}
+
+	if len(relayStampsNoDup) == 0 {
 		return nil, fmt.Errorf("Empty relay set for [%v]", name)
 	}
 
@@ -407,11 +425,11 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 	// filtering with serverProto
 	// var filteredStamps [](*stamps.ServerStampWith)
 	var filteredStamps [](*ServerStampWithMeta)
-	for i, stamp := range relayStamps {
+	for i, stamp := range relayStampsNoDup {
 		if serverProto == stamp.Proto ||
 			(serverProto == stamps.StampProtoTypeDNSCrypt && stamp.Proto == stamps.StampProtoTypeDNSCryptRelay) ||
 			(serverProto == stamps.StampProtoTypeODoHTarget && stamp.Proto == stamps.StampProtoTypeODoHRelay) {
-			filteredStamps = append(filteredStamps, &relayStamps[i])
+			filteredStamps = append(filteredStamps, &relayStampsNoDup[i])
 		}
 	}
 	dlog.Debugf("Relay candidates supporting [%v]: %v", serverProto.String(), filteredStamps)

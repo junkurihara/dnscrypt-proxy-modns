@@ -6,13 +6,15 @@ ARG GIT_USER
 ARG GIT_TOKEN
 
 WORKDIR /tmp
-
-RUN apk --no-cache add git && \
-  git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/junkurihara/dnscrypt-proxy-fork dp && \
-  cd dp && \
-  git checkout multiple_relays && \
-  cd dnscrypt-proxy && \
+COPY . /tmp/dp
+RUN cd /tmp/dp/dnscrypt-proxy &&\
   CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-s -w -extldflags "-static"' -v ./...
+# RUN apk --no-cache add git && \
+#   git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/junkurihara/dnscrypt-proxy-fork dp && \
+#   cd dp && \
+#   git checkout multiple_relays && \
+#   cd dnscrypt-proxy && \
+#   CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-s -w -extldflags "-static"' -v ./...
 
 FROM alpine:latest
 
