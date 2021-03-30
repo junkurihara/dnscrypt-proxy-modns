@@ -404,7 +404,7 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 			return DNSExchangeResponse{err: err}
 		}
 		upstreamAddr := udpAddr // nexthop address
-		if relay != nil && len(relay) > 0 {
+		if len(relay) > 0 {
 			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay, upstreamAddr.IP, upstreamAddr.Port)
 			if nexthopIdx != -1 {
 				proxy.prepareForRelay(udpAddr.IP, udpAddr.Port, &binQuery, subsequentRelays)
@@ -444,7 +444,7 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 		}
 		upstreamAddr := tcpAddr // nexthop address
 		// var subsequentRelays []DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
-		if relay != nil && len(relay) > 0 {
+		if len(relay) > 0 {
 			nexthopIdx, subsequentRelays := proxy.determineRelayOrder(proto, relay, upstreamAddr.IP, upstreamAddr.Port)
 			if nexthopIdx != -1 {
 				proxy.prepareForRelay(tcpAddr.IP, tcpAddr.Port, &binQuery, subsequentRelays)
