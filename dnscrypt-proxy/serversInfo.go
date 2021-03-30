@@ -112,7 +112,7 @@ type DNSCryptRelay struct {
 	Nexthop      bool
 }
 
-type DNSCryptRelayIpPort struct {
+type DNSCryptRelayIPPort struct {
 	RelayIP   net.IP
 	RelayPort int
 }

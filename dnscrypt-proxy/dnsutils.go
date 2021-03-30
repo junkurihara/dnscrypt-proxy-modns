@@ -495,7 +495,7 @@ func _dnsExchange(proxy *Proxy, proto string, query *dns.Msg, serverAddress stri
 	return DNSExchangeResponse{response: &msg, rtt: rtt, err: nil}
 }
 
-func displayRelayOrder(nexthopIP net.IP, nexthopPort int, arr []*DNSCryptRelayIpPort) string {
+func displayRelayOrder(nexthopIP net.IP, nexthopPort int, arr []*DNSCryptRelayIPPort) string {
 	str := fmt.Sprintf("%v:%v", nexthopIP.String(), nexthopPort)
 	for _, ipPort := range arr {
 		str = fmt.Sprintf("%v -> %v:%v", str, ipPort.RelayIP.String(), ipPort.RelayPort)

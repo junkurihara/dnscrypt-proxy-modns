@@ -498,7 +498,7 @@ func removeDuplicate(proto string, relays []*DNSCryptRelay, targetIP net.IP, tar
 	return results
 }
 
-func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, targetIP net.IP, targetPort int) (int, []*DNSCryptRelayIpPort) {
+func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, targetIP net.IP, targetPort int) (int, []*DNSCryptRelayIPPort) {
 	dlog.Debugf("determineRelayOrder: max_relays [%v], min_relays [%v], relay_randomization [%v], specified_nexthop [%v]", proxy.anonMaximumRelays, proxy.anonMinimumRelays, proxy.anonRelayRandomization, proxy.anonSpecifiedNexthop)
 	// assert for maximum and minimum allowed relays
 	if !(proxy.anonMaximumRelays > 0 && proxy.anonMinimumRelays > 0 && proxy.anonMaximumRelays >= proxy.anonMinimumRelays) {
@@ -539,7 +539,7 @@ func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, ta
 	}
 
 	// secondly, fix the order of subsequent relays.
-	var subsequentRelays []*DNSCryptRelayIpPort
+	var subsequentRelays []*DNSCryptRelayIPPort
 	// var relayOrderStr string                                         // for print
 	hopNumMax := Min(len(relayCandidateIdx), proxy.anonMaximumRelays-1)
 	hopNumMin := Min(len(relayCandidateIdx), proxy.anonMinimumRelays-1)
@@ -559,7 +559,7 @@ func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, ta
 	if proto == "udp" {
 		// relayOrderStr = fmt.Sprintf("%v:%v", relay[nexthopIdx].RelayUDPAddr.IP, relay[nexthopIdx].RelayUDPAddr.Port)
 		for _, v := range hopOrder {
-			subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
+			subsequentRelays = append(subsequentRelays, &DNSCryptRelayIPPort{
 				RelayIP:   relay[v].RelayUDPAddr.IP,
 				RelayPort: relay[v].RelayUDPAddr.Port,
 			})
@@ -567,7 +567,7 @@ func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, ta
 	} else { // tcp
 		// relayOrderStr = fmt.Sprintf("%v:%v", relay[nexthopIdx].RelayTCPAddr.IP, relay[nexthopIdx].RelayTCPAddr.Port)
 		for _, v := range hopOrder {
-			subsequentRelays = append(subsequentRelays, &DNSCryptRelayIpPort{
+			subsequentRelays = append(subsequentRelays, &DNSCryptRelayIPPort{
 				RelayIP:   relay[v].RelayTCPAddr.IP,
 				RelayPort: relay[v].RelayTCPAddr.Port,
 			})
@@ -581,7 +581,7 @@ func (proxy *Proxy) determineRelayOrder(proto string, relay []*DNSCryptRelay, ta
 	return nexthopIdx, subsequentRelays
 }
 
-func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte, subsequentRelays []*DNSCryptRelayIpPort) {
+func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte, subsequentRelays []*DNSCryptRelayIPPort) {
 	var relayedQuery []byte
 	if proxy.anonIsProtoV2 {
 		// version 2: TLV like format
@@ -625,7 +625,7 @@ func (proxy *Proxy) prepareForRelay(ip net.IP, port int, encryptedQuery *[]byte,
 
 func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32]byte, encryptedQuery []byte, clientNonce []byte) ([]byte, error) {
 	upstreamAddr := serverInfo.UDPAddr          // nexthop address
-	var subsequentRelays []*DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
+	var subsequentRelays []*DNSCryptRelayIPPort // relay IP addresses and ports following nexthop address
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
 		var nexthopIdx int
 		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("udp", serverInfo.Relay.Dnscrypt, upstreamAddr.IP, upstreamAddr.Port)
@@ -672,7 +672,7 @@ func (proxy *Proxy) exchangeWithUDPServer(serverInfo *ServerInfo, sharedKey *[32
 
 func (proxy *Proxy) exchangeWithTCPServer(serverInfo *ServerInfo, sharedKey *[32]byte, encryptedQuery []byte, clientNonce []byte) ([]byte, error) {
 	upstreamAddr := serverInfo.TCPAddr          // nexthop address
-	var subsequentRelays []*DNSCryptRelayIpPort // relay IP addresses and ports following nexthop address
+	var subsequentRelays []*DNSCryptRelayIPPort // relay IP addresses and ports following nexthop address
 	if serverInfo.Relay != nil && serverInfo.Relay.Dnscrypt != nil {
 		var nexthopIdx int
 		nexthopIdx, subsequentRelays = proxy.determineRelayOrder("tcp", serverInfo.Relay.Dnscrypt, upstreamAddr.IP, upstreamAddr.Port)
