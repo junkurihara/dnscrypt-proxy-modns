@@ -508,6 +508,7 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 			Dnscrypt: relayAddrs,
 		}, nil
 	case stamps.StampProtoTypeODoHRelay:
+		// TODO: relay_randomization here by randomizing [0]
 		target, err := url.Parse("https://" + relayCandidateStamps[0].ProviderName + "/" + relayCandidateStamps[0].Path)
 		if err != nil {
 			return nil, err
