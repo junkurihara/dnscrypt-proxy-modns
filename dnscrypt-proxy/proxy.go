@@ -849,7 +849,7 @@ func (proxy *Proxy) processIncomingQuery(clientProto string, serverProto string,
 			target := serverInfo.odohTargets[0]
 			odohQuery, err := target.encryptQuery(query)
 			if err != nil {
-				dlog.Error("Failed to encrypt query")
+				dlog.Errorf("Failed to encrypt query for [%v]", serverName)
 				response = nil
 			} else {
 				targetURL := serverInfo.URL
@@ -860,15 +860,24 @@ func (proxy *Proxy) processIncomingQuery(clientProto string, serverProto string,
 				if err == nil && len(responseBody) > 0 && responseCode == 200 {
 					response, err = odohQuery.decryptResponse(responseBody)
 					if err != nil {
-						dlog.Error("Failed to decrypt response")
+						dlog.Warnf("Failed to decrypt response from [%v]", serverName)
 						response = nil
 					}
 				} else if responseCode == 401 {
-					dlog.Notice("Forcing key update")
-					go proxy.serversInfo.refresh(proxy)
+					dlog.Infof("Forcing key update for [%v]", serverInfo.Name)
+					for _, registeredServer := range proxy.serversInfo.registeredServers {
+						if registeredServer.name == serverInfo.Name {
+							if err = proxy.serversInfo.refreshServer(proxy, registeredServer.name, registeredServer.stamp); err != nil {
+								// Failed to refresh the proxy server information.
+								dlog.Noticef("Key update failed for [%v]", serverName)
+								serverInfo.noticeFailure(proxy)
+							}
+							break
+						}
+					}
 					response = nil
 				} else {
-					dlog.Error("Failed to receive successful response")
+					dlog.Warnf("Failed to receive successful response from [%v]", serverName)
 				}
 			}
 
