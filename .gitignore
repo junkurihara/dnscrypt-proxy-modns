@@ -14,5 +14,12 @@ dnscrypt-proxy/dnscrypt-proxy
 .ci/*.md
 .ci/*.md.minisig
 .ci/test-dnscrypt-proxy.toml
+
+# for debugging
 .vscode
 .private
+__debug_bin
+
+# temporary
+.ci
+.github

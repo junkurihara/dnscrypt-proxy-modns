@@ -1,4 +1,4 @@
-module github.com/junkurihara/dnscrypt-proxy-fork
+module github.com/junkurihara/dnscrypt-proxy-modns
 
 go 1.16
 

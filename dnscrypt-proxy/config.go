@@ -152,11 +152,11 @@ func newConfig() Config {
 		},
 		AnonymizedDNS: AnonymizedDNSConfig{
 			DirectCertFallback: true,
-			RelayRandomization: false,
+			RelayRandomization: true,
 			SpecifiedNexthop:   false,
 			MaxRelays:          1,
 			MinRelays:          1,
-			IsProtoV2:          false,
+			IsProtoV2:          true,
 		},
 	}
 }
@@ -764,7 +764,7 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 			dlog.Noticef("Anonymized DNS: nexthop relay is chosen from specific set of relays")
 		}
 		if proxy.anonIsProtoV2 {
-			dlog.Noticef("Anonymized DNS: protorol v2 is used")
+			dlog.Noticef("Anonymized DNS: protocol v2 is used")
 		}
 	}
 	if *flags.Check {

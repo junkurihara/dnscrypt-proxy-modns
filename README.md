@@ -1,3 +1,175 @@
+# A forked version of dnscrypt-proxy for &mu;ODNS
+
+This repo is a forked version of [`dnscrypt-proxy`](https://github.com/DNSCrypt/dnscrypt-proxy). From the original version, this has been modified to employ a PoC implementation of **&mu;ODNS** that is a **multiple-relay-based anonymization protocol for DNS queries**.
+
+&mu;ODNS has been designed to protect user privacy in DNS even if a relay(s) collude with a resolver(s), which cannot be solved in existing DNS anonymization protocols. For the detailed information of &mu;ODNS, please refer to our concept paper below:
+
+> (Link to the concept paper)
+
+Our PoC &mu;ODNS relays has been implemented as a fork of [`encrypted-dns-server`](https://github.com/jedisct1/encrypted-dns-server) and are available at [https://github.com/junkurihara/encrypted-dns-server-modns](https://github.com/junkurihara/encrypted-dns-server-modns). Publicly available relays for PoC &mu;ODNS are listed at [https://github.com/junkurihara/experimental-resolvers](https://github.com/junkurihara/experimental-resolvers).
+
+> **NOTE**: **At this time this solution should be considered suitable for research and experimentation.**
+
+---
+
+## How to configure for PoC &mu;ODNS
+
+The PoC implementation of &mu;ODNS has been implemented by extending the Anonymized DNSCrypt protocol of DNSCrypt v2. Original `dnscrypt-proxy` can translate between Do53 and Anonymized DNSCrypt messages. In this manner, `dnscrypt-proxy-modns` translates Do53 DNS messages to/from PoC &mu;ODNS messages.
+
+Our `dnscrypt-proxy-modns` supports almost all the features in the original version. Hence, please refer to the original document for the configuration **except for the anonymization** (`[anonymized_dns]` part in `dnscrypt-proxy.toml`). The configuration for the anonymization is given by overriding the original Anonymized DNSCrypt part in `dnscrypt-proxy.toml`, which can be described as follows.
+
+```:toml
+#############################################
+#  Anonymized DNS modified for PoC mu-ODNS  #
+#############################################
+
+[anonymized_dns]
+
+## Routes are indirect ways to reach DNSCrypt servers.
+##
+## A route maps a server name ("server_name") to one or more relays that will be
+## used to connect to that server.
+##
+## A relay can be specified as a DNS Stamp (either a relay stamp, or a
+## DNSCrypt stamp) or a server name.
+##
+## The following example routes "example-server-1" via `anon-example-1` or `anon-example-2`,
+## and "example-server-2" via the relay whose relay DNS stamp is
+## "sdns://gRIxMzcuNzQuMjIzLjIzNDo0NDM".
+##
+## !!! THESE ARE JUST EXAMPLES !!!
+##
+## Review the list of available relays from the "relays.md" file, and, for each
+## server you want to use, define the relays you want connections to go through.
+##
+## Carefully choose relays and servers so that they are run by different entities.
+##
+## "server_name" can also be set to "*" to define a default route, for all servers:
+## { server_name='*', via=[{stamp='anon-example-1'}, {stamp='anon-example-2'}] }
+##
+## If a route is ["*"], the proxy automatically picks relays on a distinct network.
+## { server_name='*', via=[{stamp='*'}] } is also an option, but is likely to be suboptimal.
+
+#####################################################
+### For privacy enhanced anonymized DNS (mu-ODNS) ###
+#####################################################
+## If an option specified_nexthop = true and a relay is specified with "nexthop",
+## it is selected as a nex-thop relay in the route:
+## { server_name='*', via=[{stamp='anon-exmaple-1', nexthop=true}, ...]}
+##
+## The default value of "nexthop" is false.
+## If nexthop flags of all available relays are false, all relays are treated equally.
+## If some of them are specified, one of nexthop=true relay is chosen for the nexthop
+## relay, and others (subsequent relays) are chosen from the remaining.
+## When an option relay_randomization = true, relays are chosen at random.
+## When {stamp='*'} is given, nexthop flags for relays can be overridden by explicitly
+## specifying nexthop=true.
+
+## Manual selection is always recommended over automatic selection, so that you can
+## select (relays,server) pairs that work well and fit your own criteria (close by or
+## in different countries, operated by different entities, on distinct ISPs...)
+
+# routes = [
+#    { server_name='example-server-1', via=[ { stamp = 'anon-example-1', nexthop = true }, { stamp = 'anon-example-2' }] },
+#    { server_name='example-server-2', via=[ { stamp = 'sdns://gRIxMzcuNzQuMjIzLjIzNDo0NDM' }] }
+# ]
+
+####################################################
+## The following is an example configuration.
+## This may work, but you should configure as you need first.
+## If you use the below, you should carefully check the list specified in [sources.'relays'].
+####################################################
+## !!! BELOW IS JUST AN EXAMPLE !!!
+####################################################
+routes = [
+  { server_name = '*', via = [
+    # saldns01
+    { stamp = 'anon-saldns01-conoha-ipv4', nexthop = true },
+    # saldns02
+    { stamp = 'anon-saldns02-conoha-ipv4', nexthop = false },
+    # saldnssg01
+    { stamp = 'anon-saldnssg01-conoha-ipv4', nexthop = false },
+    # all available relays from fetched lists specified in [sources.'relays'].
+    { stamp = '*' },
+  ] },
+]
+
+# Skip resolvers incompatible with anonymization instead of using them directly
+
+skip_incompatible = false
+
+
+# If public server certificates for a non-conformant server cannot be
+# retrieved via a relay, try getting them directly. Actual queries
+# will then always go through relays.
+
+# direct_cert_fallback = false
+
+
+# If multiple relays are specified, some of them are randomly chosen when
+# a query is issued. The default value is true (randomized).
+
+relay_randomization = true
+
+
+# If this option is true, one of relays with "nexthop=true" is chosen as the
+# nexthop relay (at random if relay_randomization=true).
+# If there's no relay with "nexthop=true", the proxy falls back to choose a
+# relay with "nexthop=false|nil". The default value is false.
+# (This should be true as mu-ODNS.)
+
+specified_nexthop = true
+
+
+# Maximum number of relays (hops before the destination DNSCrypt server).
+# Default value is 1. Must be > 0 and max_relays >= min_relays
+
+max_relays = 3
+
+
+# Minimum number of relays (hops before the destination DNS server).
+# Default value is 1. Must be > 0 and max_relays >= min_relays
+
+min_relays = 1
+
+
+# If proto_v2 = true, a TLV-like header of smaller size is used, which is not
+# compatible with # the original version of Anonymized DNSCrypt.
+# If it is false, the proxy will use v1 in which for max_relays = min_relays = 1,
+# the protocol is identical to the original Anonymized DNSCrypt (compatible).
+# The default value is true.
+
+proto_v2 = true
+```
+
+Please refer to the example file `dnscrypt-proxy/example-dnscrypt-proxy.toml`.
+
+Several relays for PoC &mu;ODNS have been deployed as [https://github.com/junkurihara/experimental-resolvers](https://github.com/junkurihara/experimental-resolvers), where lists are included in the `example-dnscrypt-proxy.toml` as ones automatically fetched in the process. Note that the operators or relays and resolvers are identical (us) at this point. You can configure as you like. We highly recommend setting target resolvers to ones operated by another entity. Also note that target resolvers must support `DNSCrypt v2` if you invoke the PoC &mu;ODNS protocol.
+
+Also if you like a `docker` deployment, please check the subdirectory `docker/`. If you want to see debug messages to check routes, set the environment variable `DEBUG=true` when you run it, as:
+
+```:bash
+$ DEBUG=true dnscrypt-proxy --config ...
+```
+
+---
+
+## Modified parts from the original version
+
+We only modified the following parts from the original repo of `dnscrypt-proxy`:
+
+- modified several `.go` files in `dnscrypt-proxy/`
+
+- add `docker/` directory for docker deployment
+
+> **NOTE**: This repo continuously tracks and reflects changes in the original repo of `dnscrypt-proxy`. At this point, CIs (under `.ci/`) and Github Actions (under `.github/`) doesn't work in this forked repo since their setting is not modified for the forked version yet. Currently they are ignored in this repo. (We are planning to modify and re-add them.)
+
+---
+
+Below is the original README.md.
+
+---
+
 # ![dnscrypt-proxy 2](https://raw.github.com/dnscrypt/dnscrypt-proxy/master/logo.png?3)
 
 [![Financial Contributors on Open Collective](https://opencollective.com/dnscrypt/all/badge.svg?label=financial+contributors)](https://opencollective.com/dnscrypt)
