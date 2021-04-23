@@ -8,7 +8,7 @@ ARG GIT_TOKEN
 WORKDIR /tmp
 
 RUN apk --no-cache add git && \
-  git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/junkurihara/dnscrypt-proxy-fork dp && \
+  git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/junkurihara/dnscrypt-proxy-modns dp && \
   cd dp && \
   git checkout multiple_relays && \
   cd dnscrypt-proxy && \

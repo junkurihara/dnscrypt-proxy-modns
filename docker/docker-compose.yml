@@ -1,14 +1,14 @@
 version: "3"
 services:
-  dnscrypt-proxy-fork:
+  dnscrypt-proxy-modns:
     build:
       context: ../
       dockerfile: docker/Dockerfile
       args:
         - GIT_USER=${GIT_USER}
         - GIT_TOKEN=${GIT_TOKEN}
-    image: jqtype/dnscrypt-proxy-fork
-    container_name: dnscrypt-proxy-fork
+    image: jqtype/dnscrypt-proxy-modns
+    container_name: dnscrypt-proxy-modns
     restart: always
     environment:
       - DEBUG=true
