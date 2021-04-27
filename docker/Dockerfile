@@ -1,14 +1,11 @@
 FROM golang:1-alpine as build
 
-LABEL maintainer "Jun Kurihara <kurihara@ieee.org>"
-
-ARG GIT_USER
-ARG GIT_TOKEN
+LABEL maintainer "Jun Kurihara"
 
 WORKDIR /tmp
 
 RUN apk --no-cache add git && \
-  git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/junkurihara/dnscrypt-proxy-modns dp && \
+  git clone https://github.com/junkurihara/dnscrypt-proxy-modns dp && \
   cd dp && \
   git checkout multiple_relays && \
   cd dnscrypt-proxy && \

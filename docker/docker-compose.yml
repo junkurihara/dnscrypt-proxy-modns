@@ -4,9 +4,6 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-      args:
-        - GIT_USER=${GIT_USER}
-        - GIT_TOKEN=${GIT_TOKEN}
     image: jqtype/dnscrypt-proxy-modns
     container_name: dnscrypt-proxy-modns
     restart: always
