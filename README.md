@@ -162,7 +162,7 @@ We only modified the following parts from the original repo of `dnscrypt-proxy`:
 
 - add `docker/` directory for docker deployment
 
-> **NOTE**: This repo continuously tracks and reflects changes in the original repo of `dnscrypt-proxy`. At this point, CIs (under `.ci/`) and Github Actions (under `.github/`) doesn't work in this forked repo since their setting is not modified for the forked version yet. Currently they are ignored in this repo. (We are planning to modify and re-add them.)
+> **NOTE**: This repo continuously tracks and reflects changes in the original repo of `dnscrypt-proxy`. At this point, CIs (under `.ci/`) and Github Actions (under `.github/`) in the original repo do not work in this forked repo since their setting is not modified for the forked version yet. Currently they are ignored in this repo. (We are planning to modify and re-add them.)
 
 ---
 
