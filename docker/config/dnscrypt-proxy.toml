@@ -28,7 +28,10 @@
 ##
 ## Remove the leading # first to enable this; lines starting with # are ignored.
 
-# server_names = ['scaleway-fr', 'google', 'yandex', 'cloudflare']
+## For PoC mu-ODNS, specify DNSCrypt v2 resolvers.
+# server_names = ['scaleway-fr', 'google', 'yandex', 'cloudflare'] # original
+# server_names = ['saldns01-conoha-ipv4', 'saldns02-conoha-ipv4', 'saldnssg01-conoha-ipv4']
+
 
 ## List of local addresses and ports to listen to. Can be IPv4 and/or IPv6.
 ## Example with both IPv4 and IPv6:
@@ -61,7 +64,7 @@ ipv6_servers = false
 dnscrypt_servers = true
 
 # Use servers implementing the DNS-over-HTTPS protocol
-doh_servers = true
+doh_servers = false
 
 
 ## Require servers defined by remote sources to satisfy specific properties
@@ -618,23 +621,23 @@ format = 'tsv'
 
 [sources]
 
-## An example of a remote source from https://github.com/DNSCrypt/dnscrypt-resolvers
-
+## DNSCrypt v2 resolvers. Original resolver is available as well
+## An example of a remote source from https://github.com/junkurihara/experimental-resolvers
 [sources.'public-resolvers']
 urls = [
   'https://raw.githubusercontent.com/junkurihara/experimental-resolvers/main/resolvers.md',
 ]
-cache_file = '/var/log/dnscrypt-proxy/public-resolvers.md'
+cache_file = 'public-resolvers.md'
 minisign_key = 'RWQm8wdk0lJP8AyGtShi96d72ZzkZnGX9gxR0F5EIWmMW2N25SDfzbrt'
 prefix = ''
 
-# ## Anonymized DNS relays
-
+## Anonymized DNS relays
+## PoC mu-ODNS relays
 [sources.'relays']
 urls = [
   'https://raw.githubusercontent.com/junkurihara/experimental-resolvers/main/relays.md',
 ]
-cache_file = '/var/log/dnscrypt-proxy/relays.md'
+cache_file = 'relays.md'
 minisign_key = 'RWQm8wdk0lJP8AyGtShi96d72ZzkZnGX9gxR0F5EIWmMW2N25SDfzbrt'
 refresh_delay = 72
 prefix = ''
@@ -703,9 +706,9 @@ fragments_blocked = [
 # ]
 
 
-################################
-#        Anonymized DNS        #
-################################
+#############################################
+#  Anonymized DNS modified for PoC mu-ODNS  #
+#############################################
 
 [anonymized_dns]
 
@@ -731,43 +734,52 @@ fragments_blocked = [
 ## "server_name" can also be set to "*" to define a default route, for all servers:
 ## { server_name='*', via=[{stamp='anon-example-1'}, {stamp='anon-example-2'}] }
 ##
-## If a route is ["*"], the proxy automatically picks a relay on a distinct network.
+## If a route is ["*"], the proxy automatically picks relays on a distinct network.
 ## { server_name='*', via=[{stamp='*'}] } is also an option, but is likely to be suboptimal.
-##
-## If a relay is specified with "nexthop", it is selected as a nexthop relay in the route:
+
+#####################################################
+### For privacy enhanced anonymized DNS (mu-ODNS) ###
+#####################################################
+## If an option specified_nexthop = true and a relay is specified with "nexthop",
+## it is selected as a nex-thop relay in the route:
 ## { server_name='*', via=[{stamp='anon-exmaple-1', nexthop=true}, ...]}
 ##
-## Manual selection is always recommended over automatic selection, so that you can
-## select (relay,server) pairs that work well and fit your own criteria (close by or
-## in different countries, operated by different entities, on distinct ISPs...)
+## The default value of "nexthop" is false.
+## If nexthop flags of all available relays are false, all relays are treated equally.
+## If some of them are specified, one of nexthop=true relay is chosen for the nexthop
+## relay, and others (subsequent relays) are chosen from the remaining.
+## When an option relay_randomization = true, relays are chosen at random.
+## When {stamp='*'} is given, nexthop flags for relays can be overridden by explicitly
+## specifying nexthop=true.
 
-## For privacy enhanced anonymized dns
-## default value of "nexthop: bool" is false.
-## if nexthop for none of relays is unspecified, all relays are treated equally.
-## if specified, one of nexthop=true relay is chosen (randomly when
-## relay_randomization=true) for the nexthop relay, and others (subsequent relays)
-## are chosen from the remaining.
-## the nexthop value is overridden by being explicityly specified when '*' relays are given.
+## Manual selection is always recommended over automatic selection, so that you can
+## select (relays,server) pairs that work well and fit your own criteria (close by or
+## in different countries, operated by different entities, on distinct ISPs...)
 
 # routes = [
 #    { server_name='example-server-1', via=[ { stamp = 'anon-example-1', nexthop = true }, { stamp = 'anon-example-2' }] },
 #    { server_name='example-server-2', via=[ { stamp = 'sdns://gRIxMzcuNzQuMjIzLjIzNDo0NDM' }] }
 # ]
 
+####################################################
+## The following is an example configuration.
+## This may work, but you should configure as you need first.
+## If you use the below, you should carefully check the list specified in [sources.'relays'].
+####################################################
+## !!! BELOW IS JUST AN EXAMPLE !!!
 routes = [
   { server_name = '*', via = [
-    # saldns00: conoha-dev-docker (manually added with dnsstamp)
-    { stamp = 'sdns://gRMxNTAuOTUuMjExLjYyOjUwNDQz', nexthop = true },
-    # add 'anon-saldns0x' in public relay list with nexthop = false
-    { stamp = '*' },
-    # saldns01: override with nexthop = true
+    # saldns01
     { stamp = 'anon-saldns01-conoha-ipv4', nexthop = true },
-    # saldns02: nothing is overridden (nexthop is still false)
-    { stamp = 'anon-saldns02-conoha-ipv4', nexthop = false },
-    # saldns03: override with nexthop = true
-    { stamp = 'anon-saldns03-conoha-ipv4', nexthop = true },
+    # saldns02
+    { stamp = 'anon-saldns02-conoha-ipv4', nexthop = true },
+    # saldnssg01
+    { stamp = 'anon-saldnssg01-conoha-ipv4', nexthop = false },
+    # all available relays from fetched lists specified in [sources.'relays'].
+    { stamp = '*' },
   ] },
 ]
+####################################################
 
 # Skip resolvers incompatible with anonymization instead of using them directly
 
@@ -781,23 +793,25 @@ skip_incompatible = false
 # direct_cert_fallback = false
 
 
-# If multiple relays are specified, one of them are randomly chosen when a query get issued.
-# Default value is false (non-randomized).
+# If multiple relays are specified, some of them are randomly chosen when
+# a query is issued. The default value is true (randomized).
 
 relay_randomization = true
 
 
-# If this option is true, one of "nexthop=true" relay is chosen (randomly if relay_randomization)
-# as nexthop relay. If there's no "nexthop=true" relay, then fall back to "nexthop=false|nil" relay.
-# Default value is false.
+# If this option is true, one of relays with "nexthop=true" is chosen as the
+# nexthop relay (at random if relay_randomization=true).
+# If there's no relay with "nexthop=true", the proxy falls back to choose a
+# relay with "nexthop=false|nil". The default value is false.
+# (This should be true as mu-ODNS.)
 
 specified_nexthop = true
 
 
-# Maximum number of relays (hops before the destination DNS server).
+# Maximum number of relays (hops before the destination DNSCrypt server).
 # Default value is 1. Must be > 0 and max_relays >= min_relays
 
-max_relays = 2
+max_relays = 3
 
 
 # Minimum number of relays (hops before the destination DNS server).
@@ -806,8 +820,11 @@ max_relays = 2
 min_relays = 1
 
 
-# If true, TLV like smaller header is used, which is not compatible with original version.
-# Default is false.
+# If proto_v2 = true, a TLV-like header of smaller size is used, which is not
+# compatible with # the original version of Anonymized DNSCrypt.
+# If it is false, the proxy will use v1 in which for max_relays = min_relays = 1,
+# the protocol is identical to the original Anonymized DNSCrypt (compatible).
+# The default value is true.
 
 proto_v2 = true
 

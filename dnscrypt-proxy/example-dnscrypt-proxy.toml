@@ -800,7 +800,7 @@ routes = [
     # saldns01
     { stamp = 'anon-saldns01-conoha-ipv4', nexthop = true },
     # saldns02
-    { stamp = 'anon-saldns02-conoha-ipv4', nexthop = false },
+    { stamp = 'anon-saldns02-conoha-ipv4', nexthop = true },
     # saldnssg01
     { stamp = 'anon-saldnssg01-conoha-ipv4', nexthop = false },
     # all available relays from fetched lists specified in [sources.'relays'].
