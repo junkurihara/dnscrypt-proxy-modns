@@ -8,6 +8,8 @@ This repo is a forked version of [`dnscrypt-proxy`](https://github.com/DNSCrypt/
 
 Our PoC &mu;ODNS relays have been implemented as a fork of [`encrypted-dns-server`](https://github.com/jedisct1/encrypted-dns-server) and are available at [https://github.com/junkurihara/encrypted-dns-server-modns](https://github.com/junkurihara/encrypted-dns-server-modns). Publicly available relays for PoC &mu;ODNS are listed at [https://github.com/junkurihara/experimental-resolvers](https://github.com/junkurihara/experimental-resolvers).
 
+Docker image of `dnscrypt-proxy-modns` is available at [https://hub.docker.com/repository/docker/jqtype/dnscrypt-proxy-modns](https://hub.docker.com/repository/docker/jqtype/dnscrypt-proxy-modns). See `docker/README.md` for the configuration.
+
 > **NOTE**: **At this time this solution should be considered suitable for research and experimentation.**
 
 ---

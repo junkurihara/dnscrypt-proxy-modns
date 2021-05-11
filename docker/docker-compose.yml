@@ -1,6 +1,7 @@
 version: "3"
 services:
   dnscrypt-proxy-modns:
+    # comment out the build section if you use our docker hub image
     build:
       context: ../
       dockerfile: docker/Dockerfile
@@ -11,8 +12,6 @@ services:
       - DEBUG=true
     ports:
       - "127.0.0.1:53:53/udp"
-    #    expose:
-    #      - "53"
     tty: true
     volumes:
       - ./log:/var/log/dnscrypt-proxy

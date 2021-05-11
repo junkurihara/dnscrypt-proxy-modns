@@ -871,6 +871,3 @@ proto_v2 = true
 
 # [static.'myserver']
 # stamp = 'sdns://AQcAAAAAAAAAAAAQMi5kbnNjcnlwdC1jZXJ0Lg'
-
-[static.'saldns00-docker']
-stamp = 'sdns://AQcAAAAAAAAAEzE1MC45NS4yMTEuNjI6NTA0NDMgvhOmLtZtiqdkrLqT7Ktc14drs1grKeg1xjEWtv06a8AiMi5kbnNjcnlwdC1jZXJ0LnNhbGRuczAwLnR5cGVxLm9yZw'
