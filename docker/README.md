@@ -9,11 +9,11 @@ $ cd docker
 $ docker-compose build
 ```
 
-A pre-built docker image is also available at [https://hub.docker.com/repository/docker/jqtype/dnscrypt-proxy-modns](https://hub.docker.com/repository/docker/jqtype/dnscrypt-proxy-modns).
+A pre-built docker image is also available at [Docker Hub](https://hub.docker.com/r/jqtype/dnscrypt-proxy-modns) (`jqtype/dnscrypt-proxy-modns`).
 
 ## Configuration
 
-Add your `dnscrypt-proxy.toml` and filtering config files in `config/` directory and run it via
+Add your `dnscrypt-proxy.toml` and filtering config files in `./config/` directory and run it via
 
 ```:bash
 $ docker-compose up -d
