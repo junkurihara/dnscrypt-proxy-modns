@@ -846,7 +846,10 @@ func (proxy *Proxy) processIncomingQuery(clientProto string, serverProto string,
 			}
 		} else if serverInfo.Proto == stamps.StampProtoTypeODoHTarget {
 			tid := TransactionID(query)
-			target := serverInfo.odohTargets[0]
+			if len(serverInfo.odohTargetConfigs) == 0 {
+				return
+			}
+			target := serverInfo.odohTargetConfigs[0]
 			odohQuery, err := target.encryptQuery(query)
 			if err != nil {
 				dlog.Errorf("Failed to encrypt query for [%v]", serverName)
@@ -856,7 +859,7 @@ func (proxy *Proxy) processIncomingQuery(clientProto string, serverProto string,
 				if serverInfo.Relay != nil && serverInfo.Relay.ODoH != nil {
 					targetURL = serverInfo.Relay.ODoH.url
 				}
-				responseBody, responseCode, _, _, err := proxy.xTransport.ObliviousDoHQuery(targetURL, odohQuery.odohMessage, proxy.timeout)
+				responseBody, responseCode, _, _, err := proxy.xTransport.ObliviousDoHQuery(serverInfo.useGet, targetURL, odohQuery.odohMessage, proxy.timeout)
 				if err == nil && len(responseBody) > 0 && responseCode == 200 {
 					response, err = odohQuery.decryptResponse(responseBody)
 					if err != nil {
