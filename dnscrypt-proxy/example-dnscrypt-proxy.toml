@@ -730,7 +730,7 @@ fragments_blocked = [
 
 #
 # creds = [
-#    { server_name='myserver', client_cert='client.crt', client_key='client.key' }
+#    { server_name='*', client_cert='client.crt', client_key='client.key' }
 # ]
 
 

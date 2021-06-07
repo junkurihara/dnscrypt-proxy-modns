@@ -39,7 +39,6 @@ type Proxy struct {
 	listenAddresses               []string
 	localDoHListenAddresses       []string
 	xTransport                    *XTransport
-	dohCreds                      *map[string]DOHClientCreds
 	allWeeklyRanges               *map[string]WeeklyRanges
 	routes                        *map[string][]AnonymizedDNSRelay
 	captivePortalMap              *CaptivePortalMap
@@ -857,7 +856,7 @@ func (proxy *Proxy) processIncomingQuery(clientProto string, serverProto string,
 			} else {
 				targetURL := serverInfo.URL
 				if serverInfo.Relay != nil && serverInfo.Relay.ODoH != nil {
-					targetURL = serverInfo.Relay.ODoH.url
+					targetURL = serverInfo.Relay.ODoH.URL
 				}
 				responseBody, responseCode, _, _, err := proxy.xTransport.ObliviousDoHQuery(serverInfo.useGet, targetURL, odohQuery.odohMessage, proxy.timeout)
 				if err == nil && len(responseBody) > 0 && responseCode == 200 {
