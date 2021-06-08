@@ -107,6 +107,7 @@ type Proxy struct {
 	SourceIPv6                    bool
 	SourceDNSCrypt                bool
 	SourceDoH                     bool
+	SourceODoH                    bool
 }
 
 func (proxy *Proxy) registerUDPListener(conn *net.UDPConn) {
@@ -334,7 +335,8 @@ func (proxy *Proxy) updateRegisteredServers() error {
 				}
 			} else {
 				if !((proxy.SourceDNSCrypt && registeredServer.stamp.Proto == stamps.StampProtoTypeDNSCrypt) ||
-					(proxy.SourceDoH && registeredServer.stamp.Proto == stamps.StampProtoTypeDoH)) {
+					(proxy.SourceDoH && registeredServer.stamp.Proto == stamps.StampProtoTypeDoH) ||
+					(proxy.SourceODoH && registeredServer.stamp.Proto == stamps.StampProtoTypeODoHTarget)) {
 					continue
 				}
 				var found bool
@@ -848,7 +850,7 @@ func (proxy *Proxy) processIncomingQuery(clientProto string, serverProto string,
 			if len(serverInfo.odohTargetConfigs) == 0 {
 				return
 			}
-			target := serverInfo.odohTargetConfigs[0]
+			target := serverInfo.odohTargetConfigs[rand.Intn(len(serverInfo.odohTargetConfigs))]
 			odohQuery, err := target.encryptQuery(query)
 			if err != nil {
 				dlog.Errorf("Failed to encrypt query for [%v]", serverName)
