@@ -35,13 +35,13 @@ func (handler localDoHHandler) ServeHTTP(writer http.ResponseWriter, request *ht
 		writer.Write([]byte("dnscrypt-proxy local DoH server\n"))
 		return
 	}
-	start := time.Now()
 	clientAddr, err := net.ResolveTCPAddr("tcp", request.RemoteAddr)
 	if err != nil {
 		dlog.Errorf("Unable to get the client address: [%v]", err)
 		return
 	}
 	xClientAddr := net.Addr(clientAddr)
+	start := time.Now()
 	packet, err := ioutil.ReadAll(io.LimitReader(request.Body, MaxHTTPBodyLength))
 	if err != nil {
 		dlog.Warnf("No body in a local DoH query")
@@ -52,7 +52,7 @@ func (handler localDoHHandler) ServeHTTP(writer http.ResponseWriter, request *ht
 		writer.WriteHeader(400)
 		return
 	}
-	response := proxy.processIncomingQuery("local_doh", proxy.mainProto, packet, &xClientAddr, nil, start)
+	response := proxy.processIncomingQuery("local_doh", proxy.mainProto, packet, &xClientAddr, nil, start, false)
 	if len(response) == 0 {
 		writer.WriteHeader(500)
 		return
