@@ -671,30 +671,37 @@ minisign_key = 'RWQm8wdk0lJP8AyGtShi96d72ZzkZnGX9gxR0F5EIWmMW2N25SDfzbrt'
 refresh_delay = 72
 prefix = ''
 
-## ODoH (Oblivious DoH) servers and relays
+  ## ODoH (Oblivious DoH) servers and relays
 
-# [sources.'odoh']
-# urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh.md', 'https://download.dnscrypt.net/resolvers-list/v3/odoh.md']
-# cache_file = 'odoh.md'
-# minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
-# refresh_delay = 24
-# prefix = ''
+  # [sources.'odoh-servers']
+  #   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-servers.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-servers.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-servers.md', 'https://download.dnscrypt.net/resolvers-list/v3/odoh-servers.md']
+  #   cache_file = 'odoh-servers.md'
+  #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+  #   refresh_delay = 24
+  #   prefix = ''
+  # [sources.'odoh-relays']
+  #   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-relays.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-relays.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-relays.md', 'https://download.dnscrypt.net/resolvers-list/v3/odoh-relays.md']
+  #   cache_file = 'odoh-relays.md'
+  #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+  #   refresh_delay = 24
+  #   prefix = ''
 
-## Quad9 over DNSCrypt - https://quad9.net/
+  ## Quad9
 
-# [sources.quad9-resolvers]
-# urls = ['https://www.quad9.net/quad9-resolvers.md']
-# minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
-# cache_file = 'quad9-resolvers.md'
-# prefix = 'quad9-'
+  # [sources.quad9-resolvers]
+  #   urls = ['https://www.quad9.net/quad9-resolvers.md']
+  #   minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
+  #   cache_file = 'quad9-resolvers.md'
+  #   prefix = 'quad9-'
 
-## Another example source, with resolvers censoring some websites not appropriate for children
-## This is a subset of the `public-resolvers` list, so enabling both is useless
+  ## Another example source, with resolvers censoring some websites not appropriate for children
+  ## This is a subset of the `public-resolvers` list, so enabling both is useless
 
-#  [sources.'parental-control']
-#  urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/parental-control.md', 'https://download.dnscrypt.info/resolvers-list/v3/parental-control.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/parental-control.md', 'https://download.dnscrypt.net/resolvers-list/v3/parental-control.md']
-#  cache_file = 'parental-control.md'
-#  minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+  #  [sources.'parental-control']
+  #    urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/parental-control.md', 'https://download.dnscrypt.info/resolvers-list/v3/parental-control.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/parental-control.md', 'https://download.dnscrypt.net/resolvers-list/v3/parental-control.md']
+  #    cache_file = 'parental-control.md'
+  #    minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+
 
 
 #########################################
