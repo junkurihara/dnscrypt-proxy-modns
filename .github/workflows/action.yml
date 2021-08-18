@@ -3,7 +3,7 @@ name: Build and Publish Docker
 on:
   push:
     branches:
-      - multiple-relays
+      - multiple_relays
 
 jobs:
   build_and_push:
