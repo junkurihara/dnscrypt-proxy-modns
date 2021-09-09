@@ -99,7 +99,6 @@ type Proxy struct {
 	anonIsProtoV2                 bool
 	pluginBlockUndelegated        bool
 	child                         bool
-	daemonize                     bool
 	requiredProps                 stamps.ServerInformalProperties
 	ServerNames                   []string
 	DisabledServerNames           []string
