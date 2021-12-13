@@ -98,6 +98,7 @@ type Config struct {
 	RefusedCodeInResponses   bool                        `toml:"refused_code_in_responses"`
 	BlockedQueryResponse     string                      `toml:"blocked_query_response"`
 	QueryMeta                []string                    `toml:"query_meta"`
+	CloakedPTR				 bool						 `toml:"cloak_ptr"`
 	AnonymizedDNS            AnonymizedDNSConfig         `toml:"anonymized_dns"`
 	DoHClientX509Auth        DoHClientX509AuthConfig     `toml:"doh_client_x509_auth"`
 	DoHClientX509AuthLegacy  DoHClientX509AuthConfig     `toml:"tls_client_auth"`
@@ -159,6 +160,7 @@ func newConfig() Config {
 			MinRelays:          1,
 			IsProtoV2:          true,
 		},
+		CloakedPTR:               false,
 	}
 }
 
@@ -499,6 +501,7 @@ func ConfigLoad(proxy *Proxy, flags *ConfigFlags) error {
 	proxy.cacheMaxTTL = config.CacheMaxTTL
 	proxy.rejectTTL = config.RejectTTL
 	proxy.cloakTTL = config.CloakTTL
+	proxy.cloakedPTR = config.CloakedPTR
 
 	proxy.queryMeta = config.QueryMeta
 
