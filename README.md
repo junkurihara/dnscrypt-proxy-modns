@@ -1,5 +1,7 @@
 # A forked version of dnscrypt-proxy for &mu;ODNS
 
+(See also [https://dns.secarchlab.net/](https://secarchlab.net).)
+
 This repo is a forked version of [`dnscrypt-proxy`](https://github.com/DNSCrypt/dnscrypt-proxy). From the original version, this has been modified to employ a PoC implementation of **&mu;ODNS** that is a **multiple-relay-based anonymization protocol for DNS queries**.
 
 &mu;ODNS has been designed to protect user privacy in DNS even if a relay(s) collude with a resolver(s), which cannot be solved in existing DNS anonymization protocols. For the detailed information of &mu;ODNS, please refer to our concept paper below:
@@ -9,6 +11,8 @@ This repo is a forked version of [`dnscrypt-proxy`](https://github.com/DNSCrypt/
 Our PoC &mu;ODNS relays have been implemented as a fork of [`encrypted-dns-server`](https://github.com/jedisct1/encrypted-dns-server) and are available at [https://github.com/junkurihara/encrypted-dns-server-modns](https://github.com/junkurihara/encrypted-dns-server-modns). Publicly available relays for PoC &mu;ODNS are listed at [https://github.com/junkurihara/experimental-resolvers](https://github.com/junkurihara/experimental-resolvers).
 
 Docker image of `dnscrypt-proxy-modns` is available at [DockerHub](https://hub.docker.com/r/jqtype/dnscrypt-proxy-modns). See `docker/README.md` for the configuration.
+
+> **If you are interested in &mu;ODNS based on Oblivious DNS over HTTPS, please check my repo of [`doh-auth-proxy`](https://github.com/junkurihara/doh-auth-proxy)**. Note that it is actually a 'work-in-progress' project as well as this repo, and your contribution is really welcome.
 
 > **NOTE**: **At this time this solution should be considered suitable for research and experimentation.**
 
