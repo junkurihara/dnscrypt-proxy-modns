@@ -1,6 +1,6 @@
 # A forked version of dnscrypt-proxy for &mu;ODNS
 
-(See also [https://dns.secarchlab.net/](https://secarchlab.net).)
+(See also [https://dns.secarchlab.net/](https://dns.secarchlab.net).)
 
 This repo is a forked version of [`dnscrypt-proxy`](https://github.com/DNSCrypt/dnscrypt-proxy). From the original version, this has been modified to employ a PoC implementation of **&mu;ODNS** that is a **multiple-relay-based anonymization protocol for DNS queries**.
 
