@@ -518,7 +518,7 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 	for i := range relayCandidateStamps {
 		relayName := relayCandidateStamps[i].ServerAddrStr
 		for _, registeredServer := range proxy.serversInfo.registeredRelays {
-			if registeredServer.stamp.ServerAddrStr == relayCandidateStamps[i].ServerAddrStr {
+			if registeredServer.stamp.Proto == relayProto && registeredServer.stamp.ServerAddrStr == relayCandidateStamps[i].ServerAddrStr {
 				relayName = registeredServer.name
 				break
 			}
