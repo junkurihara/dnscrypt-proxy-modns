@@ -15,16 +15,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VividCortex/ewma"
 	"github.com/jedisct1/dlog"
 	clocksmith "github.com/jedisct1/go-clocksmith"
 	stamps "github.com/jedisct1/go-dnsstamps"
+	"github.com/lifenjoiner/ewma"
 	"github.com/miekg/dns"
 	"golang.org/x/crypto/ed25519"
 )
 
 const (
-	RTTEwmaDecay = 15.0
+	RTTEwmaDecay = 10.0
 )
 
 type RegisteredServer struct {
@@ -46,7 +46,7 @@ type DOHClientCreds struct {
 type ServerInfo struct {
 	DOHClientCreds     DOHClientCreds
 	lastActionTS       time.Time
-	rtt                ewma.MovingAverage
+	rtt                *ewma.EWMA
 	Name               string
 	HostName           string
 	UDPAddr            *net.UDPAddr
@@ -274,9 +274,9 @@ func (serversInfo *ServersInfo) estimatorUpdate() {
 		serversInfo.inner[candidate], serversInfo.inner[currentActive] = serversInfo.inner[currentActive], serversInfo.inner[candidate]
 		dlog.Debugf("New preferred candidate: %s (RTT: %d vs previous: %d)", serversInfo.inner[currentActive].Name, int(candidateRtt), int(currentActiveRtt))
 		partialSort = true
-	} else if candidateRtt > 0 && candidateRtt > serversInfo.inner[activeCount].rtt.Value() {
+	} else if candidateRtt > 0 && candidateRtt >= (serversInfo.inner[0].rtt.Value()+serversInfo.inner[activeCount-1].rtt.Value())/2.0*4.0 {
 		if time.Since(serversInfo.inner[candidate].lastActionTS) > time.Duration(1*time.Minute) {
-			serversInfo.inner[candidate].rtt.Add(serversInfo.inner[activeCount].rtt.Value())
+			serversInfo.inner[candidate].rtt.Add(candidateRtt / 2.0)
 			dlog.Debugf("Giving a new chance to candidate [%s], lowering its RTT from %d to %d (best: %d)", serversInfo.inner[candidate].Name, int(candidateRtt), int(serversInfo.inner[candidate].rtt.Value()), int(serversInfo.inner[0].rtt.Value()))
 			partialSort = true
 		}
