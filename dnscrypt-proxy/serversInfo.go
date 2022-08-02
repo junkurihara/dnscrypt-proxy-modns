@@ -614,7 +614,7 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 		}
 		if len(relayCandidateStamps[0].ServerAddrStr) > 0 {
 			ipOnly, _ := ExtractHostAndPort(relayCandidateStamps[0].ServerAddrStr, -1)
-			if ip := ParseIP(ipOnly); ip != nil {
+			if ip, err := ParseIP(ipOnly); err != nil {
 				host, _ := ExtractHostAndPort(relayCandidateStamps[0].ProviderName, -1)
 				proxy.xTransport.saveCachedIP(host, ip, -1*time.Second)
 			}
@@ -750,7 +750,7 @@ func fetchDoHServerInfo(proxy *Proxy, name string, stamp stamps.ServerStamp, isN
 	// in order to fingerprint clients across multiple IP addresses.
 	if len(stamp.ServerAddrStr) > 0 {
 		ipOnly, _ := ExtractHostAndPort(stamp.ServerAddrStr, -1)
-		if ip := ParseIP(ipOnly); ip != nil {
+		if ip, err := ParseIP(ipOnly); err != nil {
 			host, _ := ExtractHostAndPort(stamp.ProviderName, -1)
 			proxy.xTransport.saveCachedIP(host, ip, -1*time.Second)
 		}
