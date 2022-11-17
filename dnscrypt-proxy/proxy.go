@@ -239,6 +239,15 @@ func (proxy *Proxy) StartProxy() {
 	}
 	curve25519.ScalarBaseMult(&proxy.proxyPublicKey, &proxy.proxySecretKey)
 	proxy.startAcceptingClients()
+	if !proxy.child {
+		// Notify the service manager that dnscrypt-proxy is ready. dnscrypt-proxy manages itself in case
+		// servers are not immediately live/reachable. The service manager may assume it is initialized and
+		// functioning properly. Note that the service manager 'Ready' signal is delayed if netprobe
+		// cannot reach the internet during start-up.
+		if err := ServiceManagerReadyNotify(); err != nil {
+			dlog.Fatal(err)
+		}
+	}
 	liveServers, err := proxy.serversInfo.refresh(proxy)
 	if liveServers > 0 {
 		proxy.certIgnoreTimestamp = false
@@ -248,11 +257,6 @@ func (proxy *Proxy) StartProxy() {
 	}
 	if liveServers > 0 {
 		dlog.Noticef("dnscrypt-proxy is ready - live servers: %d", liveServers)
-		if !proxy.child {
-			if err := ServiceManagerReadyNotify(); err != nil {
-				dlog.Fatal(err)
-			}
-		}
 	} else if err != nil {
 		dlog.Error(err)
 		dlog.Notice("dnscrypt-proxy is waiting for at least one server to be reachable")
