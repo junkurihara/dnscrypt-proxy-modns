@@ -455,6 +455,8 @@ cache_neg_max_ttl = 600
 
 
 ## Certificate file and key - Note that the certificate has to be trusted.
+## Can be generated using the following command:
+## openssl req -x509 -nodes -newkey rsa:2048 -days 5000 -sha256 -keyout localhost.pem -out localhost.pem
 ## See the documentation (wiki) for more information.
 
 # cert_file = 'localhost.pem'
