@@ -322,7 +322,7 @@ func (serversInfo *ServersInfo) getOne() *ServerInfo {
 		serversInfo.estimatorUpdate(candidate)
 	}
 	serverInfo := serversInfo.inner[candidate]
-	dlog.Debugf("Using candidate [%s] RTT: %d", (*serverInfo).Name, int((*serverInfo).rtt.Value()))
+	dlog.Debugf("Using candidate [%s] RTT: %d", serverInfo.Name, int(serverInfo.rtt.Value()))
 	serversInfo.Unlock()
 
 	return serverInfo
@@ -628,7 +628,7 @@ func route(proxy *Proxy, name string, serverProto stamps.StampProtoType) (*Relay
 
 func fetchDNSCryptServerInfo(proxy *Proxy, name string, stamp stamps.ServerStamp, isNew bool) (ServerInfo, error) {
 	if len(stamp.ServerPk) != ed25519.PublicKeySize {
-		serverPk, err := hex.DecodeString(strings.Replace(string(stamp.ServerPk), ":", "", -1))
+		serverPk, err := hex.DecodeString(strings.ReplaceAll(string(stamp.ServerPk), ":", ""))
 		if err != nil || len(serverPk) != ed25519.PublicKeySize {
 			dlog.Fatalf("Unsupported public key for [%s]: [%s]", name, stamp.ServerPk)
 		}
@@ -709,7 +709,7 @@ func dohTestPacket(msgID uint16) []byte {
 	msg.SetEdns0(uint16(MaxDNSPacketSize), false)
 	ext := new(dns.EDNS0_PADDING)
 	ext.Padding = make([]byte, 16)
-	crypto_rand.Read(ext.Padding)
+	_, _ = crypto_rand.Read(ext.Padding)
 	edns0 := msg.IsEdns0()
 	edns0.Option = append(edns0.Option, ext)
 	body, err := msg.Pack()
@@ -732,7 +732,7 @@ func dohNXTestPacket(msgID uint16) []byte {
 	msg.SetEdns0(uint16(MaxDNSPacketSize), false)
 	ext := new(dns.EDNS0_PADDING)
 	ext.Padding = make([]byte, 16)
-	crypto_rand.Read(ext.Padding)
+	_, _ = crypto_rand.Read(ext.Padding)
 	edns0 := msg.IsEdns0()
 	edns0.Option = append(edns0.Option, ext)
 	body, err := msg.Pack()
