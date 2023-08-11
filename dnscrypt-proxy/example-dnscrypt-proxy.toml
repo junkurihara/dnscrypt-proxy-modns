@@ -680,21 +680,20 @@ format = 'tsv'
 ## If the `urls` property is missing, cache files and valid signatures
 ## must already be present. This doesn't prevent these cache files from
 ## expiring after `refresh_delay` hours.
-## Cache freshness is checked every 24 hours, so values for 'refresh_delay'
-## of less than 24 hours will have no effect.
-## A maximum delay of 168 hours (1 week) is imposed to ensure cache freshness.
+## `refreshed_delay` must be in the [24..168] interval.
+## The minimum delay of 24 hours (1 day) avoids unnecessary requests to servers.
+## The maximum delay of 168 hours (1 week) ensures cache freshness.
 
 [sources]
 
 ## DNSCrypt v2 resolvers. Original resolver is available as well
 ## An example of a remote source from https://github.com/junkurihara/experimental-resolvers
 [sources.'public-resolvers']
-urls = [
-  'https://raw.githubusercontent.com/junkurihara/experimental-resolvers/main/resolvers.md',
-]
-cache_file = 'public-resolvers.md'
-minisign_key = 'RWQm8wdk0lJP8AyGtShi96d72ZzkZnGX9gxR0F5EIWmMW2N25SDfzbrt'
-prefix = ''
+urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/public-resolvers.md', 'https://download.dnscrypt.info/resolvers-list/v3/public-resolvers.md']
+    cache_file = 'public-resolvers.md'
+    minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+    refresh_delay = 72
+    prefix = ''
 
 ## Anonymized DNS relays
 ## PoC mu-ODNS relays
@@ -707,32 +706,38 @@ minisign_key = 'RWQm8wdk0lJP8AyGtShi96d72ZzkZnGX9gxR0F5EIWmMW2N25SDfzbrt'
 refresh_delay = 72
 prefix = ''
 
-## ODoH (Oblivious DoH) servers and relays
 
-# [sources.'odoh-servers']
-#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-servers.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-servers.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-servers.md']
+## ODoH (Oblivious DoH) servers and relays
+# [sources.odoh-servers]
+#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-servers.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-servers.md']
 #   cache_file = 'odoh-servers.md'
 #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 #   refresh_delay = 24
 #   prefix = ''
-# [sources.'odoh-relays']
-#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-relays.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-relays.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-relays.md']
+# [sources.odoh-relays]
+#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-relays.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-relays.md']
 #   cache_file = 'odoh-relays.md'
 #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 #   refresh_delay = 24
 #   prefix = ''
 
-## Quad9
-
-# [sources.quad9-resolvers]
-#   urls = ['https://www.quad9.net/quad9-resolvers.md']
-#   minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
-#   cache_file = 'quad9-resolvers.md'
-#   prefix = 'quad9-'
-
 ## Another example source, with resolvers censoring some websites not appropriate for children
 ## This is a subset of the `public-resolvers` list, so enabling both is useless
 
+## Quad9
+  # [sources.quad9-resolvers]
+  #   urls = ['https://www.quad9.net/quad9-resolvers.md']
+  #   minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
+  #   cache_file = 'quad9-resolvers.md'
+  #   prefix = 'quad9-'
+
+  ### Another example source, with resolvers censoring some websites not appropriate for children
+  ### This is a subset of the `public-resolvers` list, so enabling both is useless.
+
+  # [sources.parental-control]
+  #   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/parental-control.md', 'https://download.dnscrypt.info/resolvers-list/v3/parental-control.md']
+  #   cache_file = 'parental-control.md'
+  #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 
 # [sources.'parental-control']
 #   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/parental-control.md', 'https://download.dnscrypt.info/resolvers-list/v3/parental-control.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/parental-control.md']
