@@ -18,10 +18,6 @@ github.com/dchest/safefile
 # github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572
 ## explicit; go 1.13
 github.com/go-task/slim-sprig
-# github.com/golang/mock v1.6.0
-## explicit; go 1.11
-github.com/golang/mock/mockgen
-github.com/golang/mock/mockgen/model
 # github.com/golang/protobuf v1.5.3
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
@@ -38,15 +34,14 @@ github.com/hashicorp/go-immutable-radix
 # github.com/hashicorp/go-syslog v1.0.0
 ## explicit
 github.com/hashicorp/go-syslog
-# github.com/hashicorp/golang-lru v1.0.2
-## explicit; go 1.12
-github.com/hashicorp/golang-lru
+# github.com/hashicorp/golang-lru v0.5.0
+## explicit
 github.com/hashicorp/golang-lru/simplelru
 # github.com/hectane/go-acl v0.0.0-20230122075934-ca0b05cb1adb
 ## explicit; go 1.12
 github.com/hectane/go-acl
 github.com/hectane/go-acl/api
-# github.com/jedisct1/dlog v0.0.0-20230513092435-93bc2a55ad59
+# github.com/jedisct1/dlog v0.0.0-20230811132706-443b333ff1b3
 ## explicit; go 1.20
 github.com/jedisct1/dlog
 # github.com/jedisct1/go-clocksmith v0.0.0-20230211133011-392c1afea73e
@@ -55,13 +50,13 @@ github.com/jedisct1/go-clocksmith
 # github.com/jedisct1/go-dnsstamps v0.0.0-20230211133001-124a632de565
 ## explicit; go 1.18
 github.com/jedisct1/go-dnsstamps
-# github.com/jedisct1/go-hpke-compact v0.0.0-20230513092519-91c912752223
+# github.com/jedisct1/go-hpke-compact v0.0.0-20230811132953-4ee502b61f80
 ## explicit; go 1.20
 github.com/jedisct1/go-hpke-compact
-# github.com/jedisct1/go-minisign v0.0.0-20230513092556-d96eb068239a
+# github.com/jedisct1/go-minisign v0.0.0-20230811132847-661be99b8267
 ## explicit; go 1.20
 github.com/jedisct1/go-minisign
-# github.com/jedisct1/xsecretbox v0.0.0-20230513092623-8c0b2dff5e24
+# github.com/jedisct1/xsecretbox v0.0.0-20230811132812-b950633f9f1f
 ## explicit; go 1.20
 github.com/jedisct1/xsecretbox
 # github.com/k-sone/critbitgo v1.4.0
@@ -70,7 +65,7 @@ github.com/k-sone/critbitgo
 # github.com/kardianos/service v1.2.2
 ## explicit; go 1.12
 github.com/kardianos/service
-# github.com/miekg/dns v1.1.55
+# github.com/miekg/dns v1.1.58
 ## explicit; go 1.19
 github.com/miekg/dns
 # github.com/onsi/ginkgo/v2 v2.9.5
@@ -91,6 +86,9 @@ github.com/onsi/ginkgo/v2/internal/interrupt_handler
 github.com/onsi/ginkgo/v2/internal/parallel_support
 github.com/onsi/ginkgo/v2/reporters
 github.com/onsi/ginkgo/v2/types
+# github.com/opencoff/go-sieve v0.2.1
+## explicit; go 1.21.1
+github.com/opencoff/go-sieve
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
@@ -106,11 +104,8 @@ github.com/powerman/deepequal
 # github.com/quic-go/qpack v0.4.0
 ## explicit; go 1.18
 github.com/quic-go/qpack
-# github.com/quic-go/qtls-go1-20 v0.3.1
-## explicit; go 1.20
-github.com/quic-go/qtls-go1-20
-# github.com/quic-go/quic-go v0.37.4
-## explicit; go 1.20
+# github.com/quic-go/quic-go v0.41.0
+## explicit; go 1.21
 github.com/quic-go/quic-go
 github.com/quic-go/quic-go/http3
 github.com/quic-go/quic-go/internal/ackhandler
@@ -131,13 +126,15 @@ github.com/quic-go/quic-go/quicvarint
 ## explicit; go 1.16
 github.com/smartystreets/goconvey/convey/gotest
 github.com/smartystreets/goconvey/convey/reporting
-# golang.org/x/crypto v0.12.0
-## explicit; go 1.17
+# go.uber.org/mock v0.3.0
+## explicit; go 1.20
+go.uber.org/mock/mockgen
+go.uber.org/mock/mockgen/model
+# golang.org/x/crypto v0.18.0
+## explicit; go 1.18
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
-golang.org/x/crypto/cryptobyte
-golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/curve25519
 golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ed25519
@@ -150,15 +147,15 @@ golang.org/x/crypto/poly1305
 golang.org/x/crypto/salsa20/salsa
 # golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
 ## explicit; go 1.18
-golang.org/x/exp/constraints
-# golang.org/x/mod v0.10.0
-## explicit; go 1.17
+golang.org/x/exp/rand
+# golang.org/x/mod v0.14.0
+## explicit; go 1.18
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.14.0
-## explicit; go 1.17
+# golang.org/x/net v0.20.0
+## explicit; go 1.18
 golang.org/x/net/bpf
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -170,24 +167,22 @@ golang.org/x/net/internal/socks
 golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 golang.org/x/net/proxy
-# golang.org/x/sys v0.11.0
-## explicit; go 1.17
+# golang.org/x/sys v0.16.0
+## explicit; go 1.18
 golang.org/x/sys/cpu
-golang.org/x/sys/execabs
-golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
 golang.org/x/sys/windows/svc
 golang.org/x/sys/windows/svc/eventlog
 golang.org/x/sys/windows/svc/mgr
-# golang.org/x/text v0.12.0
-## explicit; go 1.17
+# golang.org/x/text v0.14.0
+## explicit; go 1.18
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.9.1
+# golang.org/x/tools v0.17.0
 ## explicit; go 1.18
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/ast/inspector
@@ -200,7 +195,7 @@ golang.org/x/tools/internal/event
 golang.org/x/tools/internal/event/core
 golang.org/x/tools/internal/event/keys
 golang.org/x/tools/internal/event/label
-golang.org/x/tools/internal/fastwalk
+golang.org/x/tools/internal/event/tag
 golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/gopathwalk
@@ -210,6 +205,7 @@ golang.org/x/tools/internal/pkgbits
 golang.org/x/tools/internal/tokeninternal
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
+golang.org/x/tools/internal/versions
 # google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status

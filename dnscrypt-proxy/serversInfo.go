@@ -234,16 +234,33 @@ func (serversInfo *ServersInfo) refresh(proxy *Proxy) (int, error) {
 	dlog.Debug("Refreshing certificates")
 	serversInfo.RLock()
 	// Appending registeredServers slice from sources may allocate new memory.
-	registeredServers := make([]RegisteredServer, len(serversInfo.registeredServers))
+	serversCount := len(serversInfo.registeredServers)
+	registeredServers := make([]RegisteredServer, serversCount)
 	copy(registeredServers, serversInfo.registeredServers)
 	serversInfo.RUnlock()
+	countChannel := make(chan struct{}, proxy.certRefreshConcurrency)
+	errorChannel := make(chan error, serversCount)
+	for i := range registeredServers {
+		countChannel <- struct{}{}
+		go func(registeredServer *RegisteredServer) {
+			err := serversInfo.refreshServer(proxy, registeredServer.name, registeredServer.stamp)
+			if err == nil {
+				proxy.xTransport.internalResolverReady = true
+			}
+			errorChannel <- err
+			<-countChannel
+		}(&registeredServers[i])
+	}
 	liveServers := 0
 	var err error
-	for _, registeredServer := range registeredServers {
-		if err = serversInfo.refreshServer(proxy, registeredServer.name, registeredServer.stamp); err == nil {
+	for i := 0; i < serversCount; i++ {
+		err = <-errorChannel
+		if err == nil {
 			liveServers++
-			proxy.xTransport.internalResolverReady = true
 		}
+	}
+	if liveServers > 0 {
+		err = nil
 	}
 	serversInfo.Lock()
 	sort.SliceStable(serversInfo.inner, func(i, j int) bool {
@@ -948,10 +965,17 @@ func _fetchODoHTargetInfo(proxy *Proxy, name string, stamp stamps.ServerStamp, i
 		if msg.Rcode != dns.RcodeNameError {
 			dlog.Criticalf("[%s] may be a lying resolver", name)
 		}
-
-		protocol := tls.NegotiatedProtocol
-		if len(protocol) == 0 {
-			protocol = "http/1.x"
+		protocol := "http"
+		tlsVersion := uint16(0)
+		tlsCipherSuite := uint16(0)
+		if tls != nil {
+			protocol = tls.NegotiatedProtocol
+			if len(protocol) == 0 {
+				protocol = "http/1.x"
+			} else {
+				tlsVersion = tls.Version
+				tlsCipherSuite = tls.CipherSuite
+			}
 		}
 		if strings.HasPrefix(protocol, "http/1.") {
 			dlog.Warnf("[%s] does not support HTTP/2", name)
@@ -959,36 +983,38 @@ func _fetchODoHTargetInfo(proxy *Proxy, name string, stamp stamps.ServerStamp, i
 		dlog.Infof(
 			"[%s] TLS version: %x - Protocol: %v - Cipher suite: %v",
 			name,
-			tls.Version,
+			tlsVersion,
 			protocol,
-			tls.CipherSuite,
+			tlsCipherSuite,
 		)
 		showCerts := proxy.showCerts
 		found := false
 		var wantedHash [32]byte
-		for _, cert := range tls.PeerCertificates {
-			h := sha256.Sum256(cert.RawTBSCertificate)
-			if showCerts {
-				dlog.Noticef("Advertised relay cert: [%s] [%x]", cert.Subject, h)
-			} else {
-				dlog.Debugf("Advertised relay cert: [%s] [%x]", cert.Subject, h)
-			}
-			for _, hash := range stamp.Hashes {
-				if len(hash) == len(wantedHash) {
-					copy(wantedHash[:], hash)
-					if h == wantedHash {
-						found = true
-						break
+		if tls != nil {
+			for _, cert := range tls.PeerCertificates {
+				h := sha256.Sum256(cert.RawTBSCertificate)
+				if showCerts {
+					dlog.Noticef("Advertised relay cert: [%s] [%x]", cert.Subject, h)
+				} else {
+					dlog.Debugf("Advertised relay cert: [%s] [%x]", cert.Subject, h)
+				}
+				for _, hash := range stamp.Hashes {
+					if len(hash) == len(wantedHash) {
+						copy(wantedHash[:], hash)
+						if h == wantedHash {
+							found = true
+							break
+						}
 					}
 				}
+				if found {
+					break
+				}
 			}
-			if found {
-				break
+			if !found && len(stamp.Hashes) > 0 {
+				dlog.Criticalf("[%s] Certificate hash [%x] not found", name, wantedHash)
+				return ServerInfo{}, fmt.Errorf("Certificate hash not found")
 			}
-		}
-		if !found && len(stamp.Hashes) > 0 {
-			dlog.Criticalf("[%s] Certificate hash [%x] not found", name, wantedHash)
-			return ServerInfo{}, fmt.Errorf("Certificate hash not found")
 		}
 		if len(serverResponse) < MinDNSPacketSize || len(serverResponse) > MaxDNSPacketSize ||
 			serverResponse[0] != 0xca || serverResponse[1] != 0xfe || serverResponse[4] != 0x00 || serverResponse[5] != 0x01 {
