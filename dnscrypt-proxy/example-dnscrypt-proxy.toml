@@ -704,34 +704,34 @@ minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 refresh_delay = 72
 prefix = ''
 
-
 ## Anonymized DNS relays
 ## PoC mu-ODNS relays
 [sources.'relays']
 urls = [
   'https://raw.githubusercontent.com/junkurihara/experimental-resolvers/main/relays.md',
 ]
+## ODoH (Oblivious DoH) servers and relaysurls = [
 cache_file = 'relays.md'
 minisign_key = 'RWQm8wdk0lJP8AyGtShi96d72ZzkZnGX9gxR0F5EIWmMW2N25SDfzbrt'
 refresh_delay = 72
 prefix = ''
-
-## ODoH (Oblivious DoH) servers and relays
-# [sources.'odoh-servers']
-#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-servers.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-servers.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-servers.md']
 #   cache_file = 'odoh-servers.md'
+### Another example source, with resolvers censoring some websites not appropriate for children
+
+# [sources.parental-control]# [sources.'odoh-servers']
+#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-servers.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-servers.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-servers.md']
+## ODoH (Oblivious DoH) servers and relays
+# [sources.odoh-servers]
+#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-servers.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-servers.md']
 #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 #   refresh_delay = 24
 #   prefix = ''
-# [sources.'odoh-relays']
-#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-relays.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-relays.md', 'https://ipv6.download.dnscrypt.info/resolvers-list/v3/odoh-relays.md']
+# [sources.odoh-relays]
+#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/odoh-relays.md', 'https://download.dnscrypt.info/resolvers-list/v3/odoh-relays.md']
 #   cache_file = 'odoh-relays.md'
 #   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 #   refresh_delay = 24
 #   prefix = ''
-
-
-# [sources.'parental-control']
 ## Quad9
 #   urls = ['https://www.quad9.net/quad9-resolvers.md']
 #   minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
@@ -759,6 +759,18 @@ prefix = ''
 #   minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
 #   cache_file = 'quad9-resolvers.md'
 #   prefix = 'quad9-'
+### This is a subset of the `public-resolvers` list, so enabling both is useless.
+#   urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/parental-control.md', 'https://download.dnscrypt.info/resolvers-list/v3/parental-control.md']
+#   cache_file = 'parental-control.md'
+#   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+
+### dnscry.pt servers - See https://www.dnscry.pt
+## Quad9
+# [sources.quad9-resolvers]
+#   urls = ['https://www.quad9.net/quad9-resolvers.md']
+#   minisign_key = 'RWQBphd2+f6eiAqBsvDZEBXBGHQBJfeG6G+wJPPKxCZMoEQYpmoysKUN'
+#   cache_file = 'quad9-resolvers.md'
+#   prefix = 'quad9-'
 
 ### Another example source, with resolvers censoring some websites not appropriate for children
 ### This is a subset of the `public-resolvers` list, so enabling both is useless.
@@ -770,8 +782,12 @@ prefix = ''
 
 ### dnscry.pt servers - See https://www.dnscry.pt
 
-
-#  [sources.dnscry-pt-resolvers]
+#  [sources.dnscry-pt-resolvers]#  [sources.dnscry-pt-resolvers]
+#    urls = ["https://www.dnscry.pt/resolvers.md"]
+#    minisign_key = "RWQM31Nwkqh01x88SvrBL8djp1NH56Rb4mKLHz16K7qsXgEomnDv6ziQ"
+#    cache_file = "dnscry.pt-resolvers.md"
+#    refresh_delay = 72
+#    prefix = "dnscry.pt-"
 #    urls = ["https://www.dnscry.pt/resolvers.md"]
 #    minisign_key = "RWQM31Nwkqh01x88SvrBL8djp1NH56Rb4mKLHz16K7qsXgEomnDv6ziQ"
 #    cache_file = "dnscry.pt-resolvers.md"
