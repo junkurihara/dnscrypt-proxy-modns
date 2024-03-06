@@ -254,6 +254,15 @@ func (c *client) maxHeaderBytes() uint64 {
 
 // RoundTripOpt executes a request and returns a response
 func (c *client) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Response, error) {
+	rsp, err := c.roundTripOpt(req, opt)
+	if err != nil && req.Context().Err() != nil {
+		// if the context was canceled, return the context cancellation error
+		err = req.Context().Err()
+	}
+	return rsp, err
+}
+
+func (c *client) roundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Response, error) {
 	if authorityAddr("https", hostnameFromRequest(req)) != c.hostname {
 		return nil, fmt.Errorf("http3 client BUG: RoundTripOpt called for the wrong client (expected %s, got %s)", c.hostname, req.Host)
 	}
@@ -318,13 +327,13 @@ func (c *client) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Respon
 			}
 			conn.CloseWithError(quic.ApplicationErrorCode(rerr.connErr), reason)
 		}
-		return nil, rerr.err
+		return nil, maybeReplaceError(rerr.err)
 	}
 	if opt.DontCloseRequestStream {
 		close(reqDone)
 		<-done
 	}
-	return rsp, rerr.err
+	return rsp, maybeReplaceError(rerr.err)
 }
 
 // cancelingReader reads from the io.Reader.
@@ -429,8 +438,8 @@ func (c *client) doRequest(req *http.Request, conn quic.EarlyConnection, str qui
 	// Check that the server doesn't send more data in DATA frames than indicated by the Content-Length header (if set).
 	// See section 4.1.2 of RFC 9114.
 	var httpStr Stream
-	if _, ok := req.Header["Content-Length"]; ok && req.ContentLength >= 0 {
-		httpStr = newLengthLimitedStream(hstr, req.ContentLength)
+	if _, ok := res.Header["Content-Length"]; ok && res.ContentLength >= 0 {
+		httpStr = newLengthLimitedStream(hstr, res.ContentLength)
 	} else {
 		httpStr = hstr
 	}

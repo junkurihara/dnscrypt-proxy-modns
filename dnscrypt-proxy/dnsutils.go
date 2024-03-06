@@ -41,6 +41,11 @@ func TruncatedResponse(packet []byte) ([]byte, error) {
 
 func RefusedResponseFromMessage(srcMsg *dns.Msg, refusedCode bool, ipv4 net.IP, ipv6 net.IP, ttl uint32) *dns.Msg {
 	dstMsg := EmptyResponseFromMessage(srcMsg)
+	ede := new(dns.EDNS0_EDE)
+	if edns0 := dstMsg.IsEdns0(); edns0 != nil {
+		edns0.Option = append(edns0.Option, ede)
+	}
+	ede.InfoCode = dns.ExtendedErrorCodeFiltered
 	if refusedCode {
 		dstMsg.Rcode = dns.RcodeRefused
 	} else {
@@ -59,6 +64,7 @@ func RefusedResponseFromMessage(srcMsg *dns.Msg, refusedCode bool, ipv4 net.IP, 
 			if rr.A != nil {
 				dstMsg.Answer = []dns.RR{rr}
 				sendHInfoResponse = false
+				ede.InfoCode = dns.ExtendedErrorCodeForgedAnswer
 			}
 		} else if ipv6 != nil && question.Qtype == dns.TypeAAAA {
 			rr := new(dns.AAAA)
@@ -67,6 +73,7 @@ func RefusedResponseFromMessage(srcMsg *dns.Msg, refusedCode bool, ipv4 net.IP, 
 			if rr.AAAA != nil {
 				dstMsg.Answer = []dns.RR{rr}
 				sendHInfoResponse = false
+				ede.InfoCode = dns.ExtendedErrorCodeForgedAnswer
 			}
 		}
 
@@ -79,8 +86,11 @@ func RefusedResponseFromMessage(srcMsg *dns.Msg, refusedCode bool, ipv4 net.IP, 
 			hinfo.Cpu = "This query has been locally blocked"
 			hinfo.Os = "by dnscrypt-proxy"
 			dstMsg.Answer = []dns.RR{hinfo}
+		} else {
+			ede.ExtraText = "This query has been locally blocked by dnscrypt-proxy"
 		}
 	}
+
 	return dstMsg
 }
 
@@ -264,8 +274,6 @@ func removeEDNS0Options(msg *dns.Msg) bool {
 	edns0.Option = []dns.EDNS0{}
 	return true
 }
-
-func isDigit(b byte) bool { return b >= '0' && b <= '9' }
 
 func dddToByte(s []byte) byte {
 	return byte((s[0]-'0')*100 + (s[1]-'0')*10 + (s[2] - '0'))

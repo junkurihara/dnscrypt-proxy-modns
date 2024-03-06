@@ -5,13 +5,15 @@ package quic
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/netip"
+	"os"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -55,6 +57,11 @@ func inspectWriteBuffer(c syscall.RawConn) (int, error) {
 		return 0, err
 	}
 	return size, serr
+}
+
+func isECNDisabled() bool {
+	disabled, err := strconv.ParseBool(os.Getenv("QUIC_GO_DISABLE_ECN"))
+	return err == nil && disabled
 }
 
 type oobConn struct {
@@ -128,10 +135,6 @@ func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
 		bc = ipv4.NewPacketConn(c)
 	}
 
-	// Try enabling GSO.
-	// This will only succeed on Linux, and only for kernels > 4.18.
-	supportsGSO := maybeSetGSO(rawConn)
-
 	msgs := make([]ipv4.Message, batchSize)
 	for i := range msgs {
 		// preallocate the [][]byte
@@ -142,9 +145,12 @@ func newConn(c OOBCapablePacketConn, supportsDF bool) (*oobConn, error) {
 		batchConn:            bc,
 		messages:             msgs,
 		readPos:              batchSize,
+		cap: connCapabilities{
+			DF:  supportsDF,
+			GSO: isGSOSupported(rawConn),
+			ECN: !isECNDisabled(),
+		},
 	}
-	oobConn.cap.DF = supportsDF
-	oobConn.cap.GSO = supportsGSO
 	for i := 0; i < batchSize; i++ {
 		oobConn.messages[i].OOB = make([]byte, oobBufferSize)
 	}
@@ -191,7 +197,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		if hdr.Level == unix.IPPROTO_IP {
 			switch hdr.Type {
 			case msgTypeIPTOS:
-				p.ecn = protocol.ECN(body[0] & ecnMask)
+				p.ecn = protocol.ParseECNHeaderBits(body[0] & ecnMask)
 			case ipv4PKTINFO:
 				ip, ifIndex, ok := parseIPv4PktInfo(body)
 				if ok {
@@ -208,7 +214,7 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 		if hdr.Level == unix.IPPROTO_IPV6 {
 			switch hdr.Type {
 			case unix.IPV6_TCLASS:
-				p.ecn = protocol.ECN(body[0] & ecnMask)
+				p.ecn = protocol.ParseECNHeaderBits(body[0] & ecnMask)
 			case unix.IPV6_PKTINFO:
 				// struct in6_pktinfo {
 				// 	struct in6_addr ipi6_addr;    /* src/dst IPv6 address */
@@ -231,17 +237,27 @@ func (c *oobConn) ReadPacket() (receivedPacket, error) {
 }
 
 // WritePacket writes a new packet.
-// If the connection supports GSO (and we activated GSO support before),
-// it appends the UDP_SEGMENT size message to oob.
-// Callers are advised to make sure that oob has a sufficient capacity,
-// such that appending the UDP_SEGMENT size message doesn't cause an allocation.
-func (c *oobConn) WritePacket(b []byte, packetSize uint16, addr net.Addr, oob []byte) (n int, err error) {
-	if c.cap.GSO {
-		oob = appendUDPSegmentSizeMsg(oob, packetSize)
-	} else if uint16(len(b)) != packetSize {
-		panic(fmt.Sprintf("inconsistent length. got: %d. expected %d", packetSize, len(b)))
+func (c *oobConn) WritePacket(b []byte, addr net.Addr, packetInfoOOB []byte, gsoSize uint16, ecn protocol.ECN) (int, error) {
+	oob := packetInfoOOB
+	if gsoSize > 0 {
+		if !c.capabilities().GSO {
+			panic("GSO disabled")
+		}
+		oob = appendUDPSegmentSizeMsg(oob, gsoSize)
 	}
-	n, _, err = c.OOBCapablePacketConn.WriteMsgUDP(b, oob, addr.(*net.UDPAddr))
+	if ecn != protocol.ECNUnsupported {
+		if !c.capabilities().ECN {
+			panic("tried to send a ECN-marked packet although ECN is disabled")
+		}
+		if remoteUDPAddr, ok := addr.(*net.UDPAddr); ok {
+			if remoteUDPAddr.IP.To4() != nil {
+				oob = appendIPv4ECNMsg(oob, ecn)
+			} else {
+				oob = appendIPv6ECNMsg(oob, ecn)
+			}
+		}
+	}
+	n, _, err := c.OOBCapablePacketConn.WriteMsgUDP(b, oob, addr.(*net.UDPAddr))
 	return n, err
 }
 
@@ -283,4 +299,33 @@ func (info *packetInfo) OOB() []byte {
 		return cm.Marshal()
 	}
 	return nil
+}
+
+func appendIPv4ECNMsg(b []byte, val protocol.ECN) []byte {
+	startLen := len(b)
+	b = append(b, make([]byte, unix.CmsgSpace(ecnIPv4DataLen))...)
+	h := (*unix.Cmsghdr)(unsafe.Pointer(&b[startLen]))
+	h.Level = syscall.IPPROTO_IP
+	h.Type = unix.IP_TOS
+	h.SetLen(unix.CmsgLen(ecnIPv4DataLen))
+
+	// UnixRights uses the private `data` method, but I *think* this achieves the same goal.
+	offset := startLen + unix.CmsgSpace(0)
+	b[offset] = val.ToHeaderBits()
+	return b
+}
+
+func appendIPv6ECNMsg(b []byte, val protocol.ECN) []byte {
+	startLen := len(b)
+	const dataLen = 4
+	b = append(b, make([]byte, unix.CmsgSpace(dataLen))...)
+	h := (*unix.Cmsghdr)(unsafe.Pointer(&b[startLen]))
+	h.Level = syscall.IPPROTO_IPV6
+	h.Type = unix.IPV6_TCLASS
+	h.SetLen(unix.CmsgLen(dataLen))
+
+	// UnixRights uses the private `data` method, but I *think* this achieves the same goal.
+	offset := startLen + unix.CmsgSpace(0)
+	b[offset] = val.ToHeaderBits()
+	return b
 }

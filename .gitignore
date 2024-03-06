@@ -23,3 +23,6 @@ __debug_bin
 # temporary
 .ci
 .github
+contrib/msi/*.msi
+contrib/msi/*.wixpdb
+contrib/msi/*.wixobj

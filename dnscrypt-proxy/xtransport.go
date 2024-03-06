@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -388,7 +387,7 @@ func (xTransport *XTransport) resolveUsingResolvers(
 			}
 			break
 		}
-		dlog.Infof("Unable to resolve [%s] using resolver %s[%s]: %v", host, proto, resolver, err)
+		dlog.Infof("Unable to resolve [%s] using resolver [%s] (%s): %v", host, resolver, proto, err)
 	}
 	return
 }
@@ -463,7 +462,13 @@ func (xTransport *XTransport) resolveAndUpdateCache(host string) error {
 		}
 	}
 	if foundIP == nil {
-		return fmt.Errorf("no IP address found for [%s]", host)
+		if !xTransport.useIPv4 && xTransport.useIPv6 {
+			dlog.Warnf("no IPv6 address found for [%s]", host)
+		} else if xTransport.useIPv4 && !xTransport.useIPv6 {
+			dlog.Warnf("no IPv4 address found for [%s]", host)
+		} else {
+			dlog.Errorf("no IP address found for [%s]", host)
+		}
 	}
 	xTransport.saveCachedIP(host, foundIP, ttl)
 	dlog.Debugf("[%s] IP address [%s] added to the cache, valid for %v", host, foundIP, ttl)

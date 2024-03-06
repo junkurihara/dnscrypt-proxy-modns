@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jedisct1/dlog"
@@ -15,17 +16,13 @@ type CaptivePortalEntryIPs []net.IP
 type CaptivePortalMap map[string]CaptivePortalEntryIPs
 
 type CaptivePortalHandler struct {
+	wg            sync.WaitGroup
 	cancelChannel chan struct{}
-	countChannel  chan struct{}
-	channelCount  int
 }
 
 func (captivePortalHandler *CaptivePortalHandler) Stop() {
 	close(captivePortalHandler.cancelChannel)
-	for len(captivePortalHandler.countChannel) < captivePortalHandler.channelCount {
-		time.Sleep(time.Millisecond)
-	}
-	close(captivePortalHandler.countChannel)
+	captivePortalHandler.wg.Wait()
 }
 
 func (ipsMap *CaptivePortalMap) GetEntry(msg *dns.Msg) (*dns.Question, *CaptivePortalEntryIPs) {
@@ -125,19 +122,25 @@ func addColdStartListener(
 	listenAddrStr string,
 	captivePortalHandler *CaptivePortalHandler,
 ) error {
-	listenUDPAddr, err := net.ResolveUDPAddr("udp", listenAddrStr)
+	network := "udp"
+	isIPv4 := isDigit(listenAddrStr[0])
+	if isIPv4 {
+		network = "udp4"
+	}
+	listenUDPAddr, err := net.ResolveUDPAddr(network, listenAddrStr)
 	if err != nil {
 		return err
 	}
-	clientPc, err := net.ListenUDP("udp", listenUDPAddr)
+	clientPc, err := net.ListenUDP(network, listenUDPAddr)
 	if err != nil {
 		return err
 	}
+	captivePortalHandler.wg.Add(1)
 	go func() {
 		for !handleColdStartClient(clientPc, captivePortalHandler.cancelChannel, ipsMap) {
 		}
 		clientPc.Close()
-		captivePortalHandler.countChannel <- struct{}{}
+		captivePortalHandler.wg.Done()
 	}()
 	return nil
 }
@@ -185,14 +188,17 @@ func ColdStart(proxy *Proxy) (*CaptivePortalHandler, error) {
 	listenAddrStrs := proxy.listenAddresses
 	captivePortalHandler := CaptivePortalHandler{
 		cancelChannel: make(chan struct{}),
-		countChannel:  make(chan struct{}, len(listenAddrStrs)),
-		channelCount:  0,
 	}
+	ok := false
 	for _, listenAddrStr := range listenAddrStrs {
-		if err := addColdStartListener(proxy, &ipsMap, listenAddrStr, &captivePortalHandler); err == nil {
-			captivePortalHandler.channelCount++
+		err = addColdStartListener(proxy, &ipsMap, listenAddrStr, &captivePortalHandler)
+		if err == nil {
+			ok = true
 		}
 	}
+	if ok {
+		err = nil
+	}
 	proxy.captivePortalMap = &ipsMap
-	return &captivePortalHandler, nil
+	return &captivePortalHandler, err
 }

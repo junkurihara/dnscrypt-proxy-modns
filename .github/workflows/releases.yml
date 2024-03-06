@@ -28,12 +28,13 @@ jobs:
         run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1
+          check-latest: true
         id: go
 
       - name: Test suite
@@ -47,6 +48,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           .ci/ci-build.sh "${{ steps.get_version.outputs.VERSION }}"
+
+      - name: Package
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          .ci/ci-package.sh "${{ steps.get_version.outputs.VERSION }}"
 
       - name: Install minisign and sign
         if: startsWith(github.ref, 'refs/tags/')
@@ -77,7 +83,7 @@ jobs:
           prerelease: false
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@c9b46fe7aad9f02afd89b12450b780f52dacfb2d
+        uses: softprops/action-gh-release@975c1b265e11dd76618af1c374e7981f9a6ff44a
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,3 +92,4 @@ jobs:
             dnscrypt-proxy/*.zip
             dnscrypt-proxy/*.tar.gz
             dnscrypt-proxy/*.minisig
+            dnscrypt-proxy/*.msi
