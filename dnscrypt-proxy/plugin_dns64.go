@@ -49,7 +49,7 @@ func (plugin *PluginDNS64) Init(proxy *Proxy) error {
 			if err != nil {
 				return err
 			}
-			dlog.Infof("Registered DNS64 prefix [%s]", pref.String())
+			dlog.Noticef("Registered DNS64 prefix [%s]", pref.String())
 			plugin.pref64 = append(plugin.pref64, pref)
 		}
 	} else if len(proxy.dns64Resolvers) != 0 {
@@ -57,7 +57,10 @@ func (plugin *PluginDNS64) Init(proxy *Proxy) error {
 		if err := plugin.refreshPref64(); err != nil {
 			return err
 		}
+	} else {
+		return nil
 	}
+	dlog.Notice("DNS64 map enabled")
 
 	return nil
 }
@@ -105,7 +108,7 @@ func (plugin *PluginDNS64) Eval(pluginsState *PluginsState, msg *dns.Msg) error 
 		return err
 	}
 
-	if err != nil || resp.Rcode != dns.RcodeSuccess {
+	if resp.Rcode != dns.RcodeSuccess {
 		return nil
 	}
 
@@ -152,11 +155,10 @@ func (plugin *PluginDNS64) Eval(pluginsState *PluginsState, msg *dns.Msg) error 
 		}
 	}
 
-	synth := EmptyResponseFromMessage(msg)
-	synth.Answer = append(synth.Answer, synth64...)
+	msg.Answer = synth64
+	msg.AuthenticatedData = false
+	msg.SetEdns0(uint16(MaxDNSUDPSafePacketSize), false)
 
-	pluginsState.synthResponse = synth
-	pluginsState.action = PluginsActionSynth
 	pluginsState.returnCode = PluginsReturnCodeCloak
 
 	return nil
